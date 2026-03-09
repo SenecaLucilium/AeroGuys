@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: aeroguys_postgres
+    environment:
+      POSTGRES_DB: aeroguys_db
+      POSTGRES_USER: aeroguys_user
+      POSTGRES_PASSWORD: aeroguys_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - aeroguys-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aeroguys_user -d aeroguys_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  aeroguys-network:
+    driver: bridge
