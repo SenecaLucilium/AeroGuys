@@ -15,8 +15,11 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: aeroguys_backend
+    env_file:
+      - .env
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
