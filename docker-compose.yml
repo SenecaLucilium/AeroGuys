@@ -1,6 +1,37 @@
 version: '3.8'
 
 services:
+  frontend:
+    build:
+      context: ./frontend
+    container_name: aeroguys_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - aeroguys-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: aeroguys_backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: aeroguys_db
+      DB_USER: aeroguys_user
+      DB_PASSWORD: aeroguys_password
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aeroguys-network
+    restart: unless-stopped
+
   postgres:
     image: postgres:15-alpine
     container_name: aeroguys_postgres
