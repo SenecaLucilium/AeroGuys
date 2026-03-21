@@ -30,15 +30,17 @@ class FlightInfo:
     
     @classmethod
     def from_db_row(cls, row):
+        first_seen = datetime.fromtimestamp(row[3])
+        last_seen = datetime.fromtimestamp(row[4])
         return cls(
             id=row[0],
             icao24=row[1],
             callsign=row[2],
-            first_seen=datetime.fromtimestamp(row[3]),
-            last_seen=datetime.fromtimestamp(row[4]),
+            first_seen=first_seen,
+            last_seen=last_seen,
             departure_airport=row[5],
             arrival_airport=row[6],
-            duration_minutes=(row[4] - row[3]) / 60
+            duration_minutes=(last_seen - first_seen).total_seconds() / 60
         )
 
 
@@ -137,17 +139,15 @@ class DatabaseQueries:
         """
         params = []
         
-        if flight_type in ['departure', 'both']:
+        if flight_type == 'departure':
             query += " AND est_departure_airport = %s"
             params.append(airport.upper())
-        
-        if flight_type in ['arrival', 'both']:
-            if flight_type == 'both':
-                query += " OR est_arrival_airport = %s"
-                params.append(airport.upper())
-            else:
-                query += " AND est_arrival_airport = %s"
-                params.append(airport.upper())
+        elif flight_type == 'arrival':
+            query += " AND est_arrival_airport = %s"
+            params.append(airport.upper())
+        elif flight_type == 'both':
+            query += " AND (est_departure_airport = %s OR est_arrival_airport = %s)"
+            params.extend([airport.upper(), airport.upper()])
         
         if start_time:
             query += " AND first_seen >= %s"
@@ -205,17 +205,6 @@ class DatabaseQueries:
         """
         Получить текущие позиции самолетов из последнего снапшота
         """
-        # Сначала получим ID последнего снапшота
-        with self.db.get_cursor() as cursor:
-            cursor.execute("""
-                SELECT id FROM snapshots 
-                ORDER BY api_timestamp DESC LIMIT 1
-            """)
-            result = cursor.fetchone()
-            if not result:
-                return []
-            last_snapshot_id = result[0]
-        
         query = """
             SELECT 
                 sv.icao24, sv.callsign, 
@@ -223,11 +212,13 @@ class DatabaseQueries:
                 sv.baro_altitude, sv.velocity, sv.vertical_rate,
                 sv.on_ground, sv.last_contact, sv.origin_country
             FROM state_vectors sv
-            WHERE sv.snapshot_id = %s
+            WHERE sv.snapshot_id = (
+                SELECT id FROM snapshots ORDER BY api_timestamp DESC LIMIT 1
+            )
                 AND sv.latitude IS NOT NULL 
                 AND sv.longitude IS NOT NULL
         """
-        params = [last_snapshot_id]
+        params = []
         
         if min_lat is not None:
             query += " AND sv.latitude >= %s"
@@ -249,7 +240,8 @@ class DatabaseQueries:
         if airborne_only:
             query += " AND sv.on_ground = FALSE"
         
-        query += f" ORDER BY sv.last_contact DESC LIMIT {limit}"
+        query += " ORDER BY sv.last_contact DESC LIMIT %s"
+        params.append(limit)
         
         with self.db.get_cursor() as cursor:
             cursor.execute(query, params)
@@ -259,17 +251,6 @@ class DatabaseQueries:
         """
         Найти самолет по позывному (например, "AFL123")
         """
-        # Получаем последний снапшот
-        with self.db.get_cursor() as cursor:
-            cursor.execute("""
-                SELECT id FROM snapshots 
-                ORDER BY api_timestamp DESC LIMIT 1
-            """)
-            result = cursor.fetchone()
-            if not result:
-                return None
-            last_snapshot_id = result[0]
-        
         query = """
             SELECT 
                 sv.icao24, sv.callsign, 
@@ -277,13 +258,15 @@ class DatabaseQueries:
                 sv.baro_altitude, sv.velocity, sv.vertical_rate,
                 sv.on_ground, sv.last_contact, sv.origin_country
             FROM state_vectors sv
-            WHERE sv.snapshot_id = %s 
+            WHERE sv.snapshot_id = (
+                SELECT id FROM snapshots ORDER BY api_timestamp DESC LIMIT 1
+            )
                 AND UPPER(sv.callsign) LIKE UPPER(%s)
             LIMIT 1
         """
         
         with self.db.get_cursor() as cursor:
-            cursor.execute(query, [last_snapshot_id, f'%{callsign}%'])
+            cursor.execute(query, [f'%{callsign}%'])
             row = cursor.fetchone()
             return AircraftPosition.from_db_row(row) if row else None
     
@@ -388,6 +371,7 @@ class DatabaseQueries:
                 AND ft.start_time <= f.last_seen 
                 AND ft.end_time >= f.first_seen
             JOIN waypoints w ON w.flight_track_id = ft.id
+                AND w.time BETWEEN f.first_seen AND f.last_seen
             WHERE f.id = %s
             ORDER BY w.time
         """
