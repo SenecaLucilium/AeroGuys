@@ -1,12 +1,20 @@
-# AeroGuys - Гайд по запуску
+# AeroGuys — Система мониторинга авиационного трафика
 
-## �️ Структура проекта
+**AeroGuys** — аналитическая платформа реального времени: собирает данные рейсов из OpenSky Network, хранит в PostgreSQL и отображает через React/FastAPI.
+
+```
+OpenSky Network API → PostgreSQL 15 → FastAPI :8000 → React/Vite :3000
+```
+
+---
+
+## 🗂️ Структура проекта
 
 ```
 AeroGuys/
 ├── docker-compose.yml       # Поднимает все сервисы разом
 ├── requirements.txt         # Python-зависимости бэкенда
-├── .env                     # Секреты (не в git!)
+├── .env                     # Секреты (не в git! создать из .env.example)
 ├── .env.example             # Шаблон для .env
 ├── quick_poll.py            # Разовый сбор данных из OpenSky
 ├── test_queries.py          # Проверка аналитических запросов
@@ -20,79 +28,83 @@ AeroGuys/
 │       └── parsing/         # Сбор и сохранение данных
 └── frontend/
     ├── Dockerfile
+    ├── package.json         # Зависимости Node.js (node_modules не в git)
     └── src/
         ├── api/             # HTTP-клиент + типы
-        ├── hooks/           # React-хуки для каждого раздела
+        ├── hooks/           # React-хуки
         └── pages/           # Страницы приложения
 ```
 
 ---
 
-## 🐳 Способ 1: Запуск через Docker (рекомендуется)
+## 🆕 Первый старт после клонирования
 
-Поднимает **PostgreSQL + Backend API + Frontend** одной командой.
+```bash
+git clone <url-репозитория>
+cd AeroGuys
+```
+
+> `node_modules/` и `venv/` **не хранятся в репозитории**.
+> Каждый разработчик устанавливает зависимости локально (инструкции ниже).
+
+---
+
+## 🐳 Способ 1: Docker (рекомендуется)
+
+Поднимает **PostgreSQL + Backend + Frontend** одной командой, без ручной настройки окружений.
 
 ### Требования
-- Docker + Docker Compose
-- Файл `.env` с ключами OpenSky (см. шаг ниже)
+- [Docker](https://docs.docker.com/get-docker/) + Docker Compose
+- Файл `.env` с ключами OpenSky
 
-### Установка Docker (если ещё не установлен)
+### Установка Docker
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt update
-sudo apt install docker.io docker-compose
-sudo systemctl start docker
-sudo systemctl enable docker
+sudo apt update && sudo apt install -y docker.io docker-compose
+sudo systemctl enable --now docker
 sudo usermod -aG docker $USER
-# После этого нужно выйти и снова войти в систему
+# Перезайдите в сессию, чтобы группа docker применилась
+```
+
+**Arch/Manjaro:**
+```bash
+sudo pacman -S docker docker-compose
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
 ```
 
 ### Запуск
 
-**1. Создайте `.env` из шаблона:**
 ```bash
+# 1. Создайте .env из шаблона и заполните ключи
 cp .env.example .env
-# Откройте .env и вставьте свои OPENSKY_CLIENT_ID и OPENSKY_CLIENT_SECRET
-```
+nano .env          # вставьте OPENSKY_CLIENT_ID и OPENSKY_CLIENT_SECRET
 
-**2. Запустите все сервисы:**
-```bash
+# 2. Поднимите все сервисы
 docker-compose up -d --build
-```
 
-**3. Проверьте, что всё запустилось:**
-```bash
+# 3. Проверьте статус
 docker-compose ps
 ```
 
 После старта доступно:
 
-| Сервис | Адрес |
+| Сервис       | Адрес                          |
 |---|---|
-| Фронтенд | http://localhost:3000 |
-| Backend API | http://localhost:8000 |
-| Swagger UI | http://localhost:8000/api/docs |
-| PostgreSQL | localhost:5433 |
+| Фронтенд     | http://localhost:3000          |
+| Backend API  | http://localhost:8000          |
+| Swagger UI   | http://localhost:8000/api/docs |
+| PostgreSQL   | localhost:5433                 |
 
 ### Управление
 
 ```bash
-# Посмотреть логи всех сервисов
-docker-compose logs -f
-
-# Логи конкретного сервиса
-docker-compose logs -f backend
-docker-compose logs -f frontend
-
-# Остановить (данные сохраняются)
-docker-compose down
-
-# Остановить и удалить данные БД
-docker-compose down -v
-
-# Пересобрать после изменений в коде
-docker-compose up -d --build
+docker-compose logs -f           # логи всех сервисов
+docker-compose logs -f backend   # логи только бэкенда
+docker-compose down              # остановить (данные сохраняются)
+docker-compose down -v           # остановить + стереть данные БД
+docker-compose up -d --build     # пересобрать после изменений кода
 ```
 
 ---
@@ -101,41 +113,49 @@ docker-compose up -d --build
 
 ### Требования
 - Python 3.11+
-- Node.js 20+
+- Node.js 20+ и npm 10+
 - Docker (только для PostgreSQL)
 
-### Шаг 1 — База данных
+---
+
+### Шаг 1 — PostgreSQL через Docker
 
 ```bash
-# Запустить только PostgreSQL
 docker-compose up -d postgres
-
-# Проверить статус
-docker-compose ps postgres
+docker-compose ps postgres    # убедитесь, что Status = healthy
 ```
+
+---
 
 ### Шаг 2 — Python-окружение
 
-ПРОЕКТ ДЕЛАТЬ ТОЛЬКО В ОКРУЖЕНИИ, ЧТОБЫ НЕ ГРУЗИТЬ ЛИШНИЕ ЛИБЫ ИЗ ОБЩЕГО ОКРУЖЕНИЯ
+> Всегда работайте внутри `venv` — это изолирует зависимости проекта от системного Python.
 
 ```bash
 # Создать venv (один раз)
 python3 -m venv venv
 
 # Активировать
-source venv/bin/activate       # Linux/Mac
-# venv\Scripts\activate.bat   # Windows
+source venv/bin/activate          # Linux / macOS
+# venv\Scripts\activate.bat       # Windows (cmd)
+# venv\Scripts\Activate.ps1       # Windows (PowerShell)
 
 # Установить зависимости
 pip install -r requirements.txt
 ```
 
+---
+
 ### Шаг 3 — Переменные окружения
 
 ```bash
 cp .env.example .env
-# Заполните OPENSKY_CLIENT_ID и OPENSKY_CLIENT_SECRET
+# Откройте .env и заполните:
+#   OPENSKY_CLIENT_ID=...
+#   OPENSKY_CLIENT_SECRET=...
 ```
+
+---
 
 ### Шаг 4 — Запуск Backend API
 
@@ -145,42 +165,42 @@ cd backend/src
 uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-API будет доступен на http://localhost:8000  
-Swagger UI — http://localhost:8000/api/docs
+API: http://localhost:8000 · Swagger: http://localhost:8000/api/docs
 
-### Шаг 5 — Запуск Frontend
+---
 
-В отдельном терминале:
+### Шаг 5 — Установка зависимостей и запуск фронтенда
 
 ```bash
 cd frontend
-npm install       # только при первом запуске
+
+# node_modules не хранятся в git — установить один раз
+npm install
+
+# Запустить dev-сервер
 npm run dev
 ```
 
-Фронтенд будет доступен на http://localhost:3000  
-Все запросы `/api/*` автоматически проксируются на `http://localhost:8000`.
+Фронтенд: http://localhost:3000  
+Все запросы `/api/*` автоматически проксируются на `:8000`.
 
 ---
 
 ## 📡 Сбор данных из OpenSky
 
-Приложение накапливает данные через скрипт `quick_poll.py`.  
-Чем больше запусков — тем богаче аналитика.
-
 ```bash
-# Разовый сбор данных (весь мир: состояния + рейсы)
 source venv/bin/activate
+
+# Разовый сбор данных (весь мир)
 python quick_poll.py
 
-# Проверить аналитические запросы по накопленным данным
+# Проверить аналитику по собранным данным
 python test_queries.py
 ```
 
-> ⚠️ Рекомендуется запускать `quick_poll.py` регулярно через `cron` или вручную несколько раз, чтобы накопить данные для анализа.
+> Чем больше запусков `quick_poll.py` — тем богаче аналитика.
 
-### Настройка cron (опционально)
-
+**Автоматический сбор через cron:**
 ```bash
 crontab -e
 # Добавить строку — запуск каждые 10 минут:
@@ -189,23 +209,74 @@ crontab -e
 
 ---
 
-## ⚙️ Как добавить новые зависимости Python
+## ➕ Добавление зависимостей
 
+**Python:**
 ```bash
 source venv/bin/activate
-pip install <package>
-pip freeze > requirements.txt
+pip install <пакет>
+# Вручную добавьте в requirements.txt с минимальной версией:
+#   <пакет>>=X.Y.Z
+```
+
+> Не делайте `pip freeze > requirements.txt` — это сохраняет весь граф транзитивных зависимостей
+> с точными версиями, что ломается при смене платформы или Python-версии.
+
+**Node.js (frontend):**
+```bash
+cd frontend
+npm install <пакет>
+# package.json обновится автоматически
+# Коммитьте package.json и package-lock.json — НЕ node_modules/
 ```
 
 ---
 
-## ⚠️ Важные замечания
+## 🔀 Git-воркфлоу
 
-| Ситуация | Причина | Решение |
+```bash
+# Клонировать репозиторий и сразу установить зависимости
+git clone <url>
+cd AeroGuys
+
+# --- Python ---
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# --- Frontend ---
+cd frontend && npm install && cd ..
+
+# Создать ветку для фичи
+git checkout -b feature/my-feature
+
+# Зафиксировать изменения
+git add .
+git commit -m "feat: описание изменений"
+
+# Отправить ветку и создать Pull Request
+git push origin feature/my-feature
+```
+
+**Что НЕ попадает в git** (задано в `.gitignore`):
+
+| Что | Почему |
+|---|---|
+| `venv/` | Локальное Python-окружение |
+| `__pycache__/`, `*.pyc` | Байткод Python |
+| `frontend/node_modules/` | Установленные npm-пакеты |
+| `frontend/dist/` | Скомпилированный фронтенд |
+| `.env` | Секреты и API-ключи |
+| `*.log` | Логи выполнения |
+
+---
+
+## ⚠️ Частые проблемы
+
+| Симптом | Причина | Решение |
 |---|---|---|
-| Нет данных в аналитике | БД пуста | Запустить `quick_poll.py` несколько раз |
+| Пустые таблицы на фронте | БД пуста | `python quick_poll.py` + обновить страницу |
 | Ошибка подключения к БД | Docker не запущен | `docker-compose up -d postgres` |
-| `OPENSKY_CLIENT_ID not found` | Нет `.env` файла | `cp .env.example .env` и заполнить |
-| Фронт не видит API | Бэкенд не запущен | Запустить `uvicorn` или `docker-compose up` |
-
-> ⚠️ Файл `.env` не должен попадать в git — он уже в `.gitignore`.
+| `OPENSKY_CLIENT_ID not found` | Нет `.env` | `cp .env.example .env` и заполнить |
+| Фронт не видит API | Бэкенд не запущен | `uvicorn` или `docker-compose up` |
+| `npm: command not found` | Node.js не установлен | Установить с [nodejs.org](https://nodejs.org/) |
+| `ModuleNotFoundError` | venv не активирован | `source venv/bin/activate` |
