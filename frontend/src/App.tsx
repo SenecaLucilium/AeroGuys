@@ -7,11 +7,13 @@ import RadarIcon          from '@mui/icons-material/Radar'
 import LocationCityIcon   from '@mui/icons-material/LocationCity'
 import FlightIcon         from '@mui/icons-material/Flight'
 import AltRouteIcon       from '@mui/icons-material/AltRoute'
+import PublicIcon         from '@mui/icons-material/Public'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import RealtimePage from '@pages/RealtimePage'
 import AirportsPage from '@pages/AirportsPage'
 import AircraftPage from '@pages/AircraftPage'
 import RoutesPage   from '@pages/RoutesPage'
+import MapPage      from '@pages/MapPage'
 
 const DRAWER_WIDTH = 240
 
@@ -20,6 +22,7 @@ const NAV = [
   { path: '/airports',  label: 'Аэропорты',      icon: <LocationCityIcon /> },
   { path: '/aircraft',  label: 'Воздушные суда', icon: <FlightIcon /> },
   { path: '/routes',    label: 'Маршруты',       icon: <AltRouteIcon /> },
+  { path: '/map',       label: 'Карта',          icon: <PublicIcon /> },
 ]
 
 function NavDrawer() {
@@ -148,6 +151,7 @@ function AppLayout() {
           <Route path="/airports" element={<AirportsPage />} />
           <Route path="/aircraft" element={<AircraftPage />} />
           <Route path="/routes"   element={<RoutesPage />} />
+          <Route path="/map"      element={<MapPage />} />
         </Routes>
       </Box>
     </Box>
