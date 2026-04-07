@@ -1,78 +1,193 @@
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Chip,
+  TableHead, TableRow, Chip, Grid, Card, CardContent,
 } from '@mui/material'
-import RadarIcon        from '@mui/icons-material/Radar'
+import RadarIcon         from '@mui/icons-material/Radar'
 import FlightTakeoffIcon from '@mui/icons-material/FlightTakeoff'
 import FlightLandIcon    from '@mui/icons-material/FlightLand'
 import ArrowUpwardIcon   from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
+import PublicIcon        from '@mui/icons-material/Public'
+import SpeedIcon         from '@mui/icons-material/Speed'
+import HeightIcon        from '@mui/icons-material/Height'
+import FlightIcon        from '@mui/icons-material/Flight'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts'
 import { SectionCard } from '@/components/DataBlock'
-import { useAirportBusyness, useFastestAircraft, useHighestAircraft } from '@hooks/useRealtime'
+import {
+  useAirportBusyness, useFastestAircraft, useHighestAircraft,
+} from '@hooks/useRealtime'
+import {
+  useSnapshotStats, useFlightPhases, useSpeedDistribution, useCountryDistribution,
+} from '@hooks/useAircraft'
 import type { AircraftPosition, AirportBusyness } from '@api/types'
 
-function BusynessTable({ data }: { data: AirportBusyness[] }) {
-  const max = Math.max(...data.map(d => d.total_flights), 1)
+// ─── Chart palette ───────────────────────────────────────────────────────────
+const C = {
+  blue:   '#1e88e5',
+  amber:  '#ffa726',
+  green:  '#66bb6a',
+  red:    '#ef5350',
+  purple: '#ab47bc',
+  teal:   '#26c6da',
+  axis:   '#78909c',
+  grid:   'rgba(255,255,255,0.07)',
+  label:  '#90caf9',
+}
+
+const PHASE_COLORS: Record<string, string> = {
+  climb:   C.green,
+  descent: C.red,
+  level:   C.blue,
+}
+const PHASE_LABELS: Record<string, string> = {
+  climb: 'Набор', descent: 'Снижение', level: 'Горизонт',
+}
+
+const COUNTRY_COLORS = [C.blue, C.amber, C.teal, C.purple, C.green, C.red,
+  '#ec407a', '#26a69a', '#7e57c2', '#29b6f6', '#d4e157', '#ff7043', '#78909c', '#8d6e63', '#42a5f5']
+
+// ─── KPI card ────────────────────────────────────────────────────────────────
+function StatCard({
+  icon, label, value, sub, color = C.blue,
+}: { icon: React.ReactNode; label: string; value: string; sub?: string; color?: string }) {
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ width: 40 }}>#</TableCell>
-            <TableCell>Аэропорт</TableCell>
-            <TableCell align="right">
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-                <FlightTakeoffIcon sx={{ fontSize: 14 }} />Вылеты
-              </Box>
-            </TableCell>
-            <TableCell align="right">
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-                <FlightLandIcon sx={{ fontSize: 14 }} />Прилёты
-              </Box>
-            </TableCell>
-            <TableCell align="right">Всего</TableCell>
-            <TableCell sx={{ minWidth: 130 }}>Активность</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {data.map((row, i) => (
-            <TableRow key={row.airport}>
-              <TableCell sx={{ color: 'text.secondary' }}>{i + 1}</TableCell>
-              <TableCell>
-                <Typography fontFamily="monospace" color="primary.main" fontWeight={700} variant="body2">
-                  {row.airport}
-                </Typography>
-              </TableCell>
-              <TableCell align="right">{row.departures.toLocaleString()}</TableCell>
-              <TableCell align="right">{row.arrivals.toLocaleString()}</TableCell>
-              <TableCell align="right">
-                <Typography fontWeight={700}>{row.total_flights.toLocaleString()}</Typography>
-              </TableCell>
-              <TableCell>
-                <Box sx={{ height: 6, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                  <Box sx={{
-                    height: '100%',
-                    width: `${(row.total_flights / max) * 100}%`,
-                    background: 'linear-gradient(90deg, #1e88e5, #42a5f5)',
-                    borderRadius: 1,
-                  }} />
-                </Box>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Card sx={{ border: `1px solid ${color}33`, background: `${color}0d`, flex: 1, minWidth: 120 }}>
+      <CardContent sx={{ p: '12px 16px!important' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+          <Box sx={{ color, display: 'flex', fontSize: 20 }}>{icon}</Box>
+          <Typography variant="caption" color="text.secondary" fontWeight={500}>{label}</Typography>
+        </Box>
+        <Typography variant="h5" fontWeight={700} sx={{ color, lineHeight: 1 }}>{value}</Typography>
+        {sub && <Typography variant="caption" color="text.secondary">{sub}</Typography>}
+      </CardContent>
+    </Card>
   )
 }
 
+// ─── Airport busyness chart ───────────────────────────────────────────────────
+function BusynessChart({ data }: { data: AirportBusyness[] }) {
+  const sorted = [...data].sort((a, b) => b.total_flights - a.total_flights).slice(0, 12)
+  const chartData = sorted.map(d => ({
+    airport: d.airport,
+    dep: d.departures,
+    arr: d.arrivals,
+  }))
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} horizontal={false} />
+        <XAxis type="number" tick={{ fill: C.axis, fontSize: 10 }} />
+        <YAxis dataKey="airport" type="category" tick={{ fill: C.label, fontSize: 11, fontFamily: 'monospace' }} width={46} />
+        <Tooltip
+          contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
+          labelStyle={{ color: C.label, fontWeight: 700 }}
+        />
+        <Legend wrapperStyle={{ fontSize: 11, color: '#b0bec5' }} />
+        <Bar dataKey="dep" name="Вылеты" fill={C.blue} radius={[0, 3, 3, 0]} maxBarSize={14} />
+        <Bar dataKey="arr" name="Прилёты" fill={C.amber} radius={[0, 3, 3, 0]} maxBarSize={14} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+// ─── Speed distribution chart ─────────────────────────────────────────────────
+function SpeedDistChart() {
+  const { data } = useSpeedDistribution()
+  if (!data?.length) return null
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false} />
+        <XAxis dataKey="label" tick={{ fill: C.axis, fontSize: 9 }} interval={0} angle={-20} textAnchor="end" height={36} />
+        <YAxis tick={{ fill: C.axis, fontSize: 10 }} />
+        <Tooltip
+          contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
+          formatter={(v: number) => [v, 'Самолётов']}
+        />
+        <Bar dataKey="count" fill={C.teal} radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+// ─── Country distribution chart ───────────────────────────────────────────────
+function CountryChart() {
+  const { data, loading, error, refetch } = useCountryDistribution(15)
+  const sorted = data ? [...data].sort((a, b) => a.aircraft_count - b.aircraft_count).slice(-12) : []
+  return (
+    <SectionCard
+      title="\u0422\u043e\u043f \u0441\u0442\u0440\u0430\u043d \u043f\u043e \u0447\u0438\u0441\u043b\u0443 \u0412\u0421 \u0432 \u0441\u043d\u0430\u043f\u0448\u043e\u0442\u0435"
+      loading={loading} error={error} refetch={refetch}
+    >
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={sorted} layout="vertical" margin={{ left: 0, right: 24, top: 4, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={C.grid} horizontal={false} />
+          <XAxis type="number" tick={{ fill: C.axis, fontSize: 10 }} />
+          <YAxis dataKey="country" type="category" tick={{ fill: C.label, fontSize: 10 }} width={100} />
+          <Tooltip
+            contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
+            formatter={(v: number) => [v, '\u0421\u0430\u043c\u043e\u043b\u0451\u0442\u043e\u0432']}
+          />
+          {sorted.map((_, i) => (
+            <Cell key={i} fill={COUNTRY_COLORS[i % COUNTRY_COLORS.length]} />
+          ))}
+          <Bar dataKey="aircraft_count" name="\u0421\u0430\u043c\u043e\u043b\u0451\u0442\u043e\u0432" radius={[0, 3, 3, 0]} maxBarSize={16}>
+            {sorted.map((_, i) => (
+              <Cell key={i} fill={COUNTRY_COLORS[i % COUNTRY_COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </SectionCard>
+  )
+}
+
+// ─── Flight phases donut ──────────────────────────────────────────────────────
+function PhasesDonut() {
+  const { data } = useFlightPhases()
+  if (!data?.length) return null
+  const pieData = data.map(d => ({
+    name: PHASE_LABELS[d.phase] ?? d.phase,
+    value: d.count,
+    color: PHASE_COLORS[d.phase] ?? C.axis,
+  }))
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <PieChart>
+        <Pie
+          data={pieData}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          innerRadius={50}
+          outerRadius={80}
+          paddingAngle={3}
+        >
+          {pieData.map((entry, i) => (
+            <Cell key={i} fill={entry.color} />
+          ))}
+        </Pie>
+        <Tooltip
+          contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
+        />
+        <Legend wrapperStyle={{ fontSize: 11, color: '#b0bec5' }} />
+      </PieChart>
+    </ResponsiveContainer>
+  )
+}
+
+// ─── Aircraft table ───────────────────────────────────────────────────────────
 function AircraftTable({ data }: { data: AircraftPosition[] }) {
   return (
     <TableContainer>
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell sx={{ width: 40 }}>#</TableCell>
+            <TableCell sx={{ width: 36 }}>#</TableCell>
             <TableCell>ICAO24</TableCell>
             <TableCell>Позывной</TableCell>
             <TableCell>Страна</TableCell>
@@ -87,9 +202,7 @@ function AircraftTable({ data }: { data: AircraftPosition[] }) {
             <TableRow key={`${row.icao24}-${i}`}>
               <TableCell sx={{ color: 'text.secondary' }}>{i + 1}</TableCell>
               <TableCell>
-                <Typography fontFamily="monospace" fontSize={12} color="secondary.main">
-                  {row.icao24}
-                </Typography>
+                <Typography fontFamily="monospace" fontSize={12} color="secondary.main">{row.icao24}</Typography>
               </TableCell>
               <TableCell>
                 {row.callsign
@@ -134,13 +247,21 @@ function AircraftTable({ data }: { data: AircraftPosition[] }) {
   )
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RealtimePage() {
+  const stats    = useSnapshotStats()
   const busyness = useAirportBusyness(24, 20)
   const fastest  = useFastestAircraft(20)
   const highest  = useHighestAircraft(20)
 
+  const s = stats.data
+  const airbornePercent = s && s.total > 0
+    ? Math.round((s.airborne / s.total) * 100)
+    : null
+
   return (
     <Box>
+      {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <RadarIcon color="primary" sx={{ fontSize: 32 }} />
         <Box>
@@ -151,6 +272,66 @@ export default function RealtimePage() {
         </Box>
       </Box>
 
+      {/* KPI cards */}
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
+        <StatCard
+          icon={<FlightIcon fontSize="inherit" />}
+          label="Всего в снапшоте"
+          value={s ? s.total.toLocaleString() : '—'}
+          color={C.blue}
+        />
+        <StatCard
+          icon={<FlightTakeoffIcon fontSize="inherit" />}
+          label="В воздухе"
+          value={s ? s.airborne.toLocaleString() : '—'}
+          sub={airbornePercent != null ? `${airbornePercent}% от всех` : undefined}
+          color={C.green}
+        />
+        <StatCard
+          icon={<FlightLandIcon fontSize="inherit" />}
+          label="На земле"
+          value={s ? s.on_ground.toLocaleString() : '—'}
+          color={C.amber}
+        />
+        <StatCard
+          icon={<SpeedIcon fontSize="inherit" />}
+          label="Макс. скорость"
+          value={s?.max_speed_kmh != null ? `${Math.round(s.max_speed_kmh)} км/ч` : '—'}
+          color={C.teal}
+        />
+        <StatCard
+          icon={<HeightIcon fontSize="inherit" />}
+          label="Макс. высота"
+          value={s?.max_altitude_m != null ? `${Math.round(s.max_altitude_m / 100) * 100} м` : '—'}
+          sub={s?.max_altitude_m ? `FL${Math.round(s.max_altitude_m / 30.48 / 100) * 100}` : undefined}
+          color={C.purple}
+        />
+        <StatCard
+          icon={<PublicIcon fontSize="inherit" />}
+          label="Стран в воздухе"
+          value={s ? s.countries_count.toLocaleString() : '—'}
+          color={C.red}
+        />
+      </Box>
+
+      {/* Phases + Speed side-by-side */}
+      <Grid container spacing={2} sx={{ mb: 0 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <SectionCard title="Фазы полёта" loading={stats.loading} error={stats.error} refetch={stats.refetch}>
+            <PhasesDonut />
+          </SectionCard>
+        </Grid>
+        <Grid size={{ xs: 12, md: 8 }}>
+          <SectionCard title="Распределение скоростей (км/ч)" loading={stats.loading} error={stats.error} refetch={stats.refetch}>
+            <SpeedDistChart />
+          </SectionCard>
+        </Grid>
+      </Grid>
+
+      {/* Country distribution */}
+      <CountryChart />
+
+      {/* Airport busyness chart + table */}
       <SectionCard
         title="Загруженность аэропортов (24 ч)"
         loading={busyness.loading}
@@ -158,9 +339,54 @@ export default function RealtimePage() {
         refetch={busyness.refetch}
         count={busyness.data?.length}
       >
-        {busyness.data && <BusynessTable data={busyness.data} />}
+        {busyness.data && (
+          <>
+            <BusynessChart data={busyness.data} />
+            <Box sx={{ mt: 2 }}>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ width: 36 }}>#</TableCell>
+                      <TableCell>Аэропорт</TableCell>
+                      <TableCell align="right">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                          <FlightTakeoffIcon sx={{ fontSize: 14 }} />Вылеты
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+                          <FlightLandIcon sx={{ fontSize: 14 }} />Прилёты
+                        </Box>
+                      </TableCell>
+                      <TableCell align="right">Всего</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {[...busyness.data].sort((a, b) => b.total_flights - a.total_flights).map((row, i) => (
+                      <TableRow key={row.airport}>
+                        <TableCell sx={{ color: 'text.secondary' }}>{i + 1}</TableCell>
+                        <TableCell>
+                          <Typography fontFamily="monospace" color="primary.main" fontWeight={700} variant="body2">
+                            {row.airport}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">{row.departures.toLocaleString()}</TableCell>
+                        <TableCell align="right">{row.arrivals.toLocaleString()}</TableCell>
+                        <TableCell align="right">
+                          <Typography fontWeight={700}>{row.total_flights.toLocaleString()}</Typography>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          </>
+        )}
       </SectionCard>
 
+      {/* Fastest */}
       <SectionCard
         title="Самые быстрые воздушные суда"
         loading={fastest.loading}
@@ -171,6 +397,7 @@ export default function RealtimePage() {
         {fastest.data && <AircraftTable data={fastest.data} />}
       </SectionCard>
 
+      {/* Highest */}
       <SectionCard
         title="Наибольшая высота полёта"
         loading={highest.loading}
@@ -183,4 +410,3 @@ export default function RealtimePage() {
     </Box>
   )
 }
-

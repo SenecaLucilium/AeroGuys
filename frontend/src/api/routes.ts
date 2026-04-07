@@ -1,5 +1,5 @@
 import client from './client'
-import type { PopularRoute, RouteEfficiency } from './types'
+import type { PopularRoute, RouteEfficiency, DurationBucket, AirlineStat } from './types'
 
 // GET /api/routes/popular
 export async function getPopularRoutes(params?: {
@@ -16,5 +16,17 @@ export async function getRouteEfficiency(params?: {
   limit?: number
 }): Promise<RouteEfficiency[]> {
   const { data } = await client.get<RouteEfficiency[]>('/api/routes/efficiency', { params })
+  return data
+}
+
+// GET /api/routes/duration-distribution
+export async function getDurationDistribution(params?: { days?: number }): Promise<DurationBucket[]> {
+  const { data } = await client.get<DurationBucket[]>('/api/routes/duration-distribution', { params })
+  return data
+}
+
+// GET /api/routes/airlines
+export async function getTopAirlines(params?: { days?: number; limit?: number }): Promise<AirlineStat[]> {
+  const { data } = await client.get<AirlineStat[]>('/api/routes/airlines', { params })
   return data
 }

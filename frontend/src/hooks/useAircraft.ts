@@ -3,6 +3,8 @@ import {
   getPositions, getAircraftTypes, getAltitudeProfile,
   getUnidentifiedAircraft, getBusinessAviation,
   getExtremeVerticalRates, getAircraftUsage, getAircraftRoutes,
+  getSpeedDistribution, getAltitudeDistribution, getCountryDistribution,
+  getSnapshotStats, getFlightPhases,
 } from '@api/aircraft'
 import type { BBoxParams } from '@api/types'
 
@@ -29,3 +31,18 @@ export const useAircraftUsage = (icao24: string, days = 30) =>
 
 export const useAircraftRoutes = (icao24: string, days = 30, limit = 10) =>
   useApi(() => getAircraftRoutes(icao24, { days, limit }), [icao24, days, limit])
+
+export const useSpeedDistribution = () =>
+  useApi(() => getSpeedDistribution(), [])
+
+export const useAltitudeDistribution = () =>
+  useApi(() => getAltitudeDistribution(), [])
+
+export const useCountryDistribution = (limit = 15) =>
+  useApi(() => getCountryDistribution({ limit }), [limit])
+
+export const useSnapshotStats = () =>
+  useApi(() => getSnapshotStats(), [])
+
+export const useFlightPhases = () =>
+  useApi(() => getFlightPhases(), [])
