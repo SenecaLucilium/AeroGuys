@@ -8,7 +8,9 @@ import Typography from '@mui/material/Typography'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Chip from '@mui/material/Chip'
+import LinearProgress from '@mui/material/LinearProgress'
 import { getPositions } from '@api/aircraft'
+import { useSnapshotStats } from '@hooks/useAircraft'
 import type { AircraftPosition } from '@api/types'
 
 const REFRESH_SECS = 30
@@ -37,6 +39,8 @@ function popupHtml(ac: AircraftPosition): string {
     </div>`
 }
 
+type FilterMode = 'all' | 'airborne' | 'ground'
+
 export default function MapPage() {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef       = useRef<L.Map | null>(null)
@@ -46,6 +50,15 @@ export default function MapPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [countdown, setCountdown] = useState(REFRESH_SECS)
+  const [filter, setFilter]   = useState<FilterMode>('all')
+
+  const stats = useSnapshotStats()
+
+  const filteredData = filter === 'airborne'
+    ? data.filter(a => !a.on_ground)
+    : filter === 'ground'
+      ? data.filter(a => a.on_ground)
+      : data
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -80,12 +93,12 @@ export default function MapPage() {
     }
   }, [fetchData])
 
-  // Update markers when data changes
+  // Update markers when data or filter changes
   useEffect(() => {
     const group = groupRef.current
     if (!group) return
     group.clearLayers()
-    data.forEach((ac) => {
+    filteredData.forEach((ac) => {
       if (ac.latitude == null || ac.longitude == null) return
       L.circleMarker([ac.latitude, ac.longitude], {
         radius: ac.on_ground ? 5 : 7,
@@ -97,7 +110,7 @@ export default function MapPage() {
         .bindPopup(popupHtml(ac), { className: 'dark-popup' })
         .addTo(group)
     })
-  }, [data])
+  }, [filteredData])
 
   // Auto-refresh countdown
   useEffect(() => {
@@ -123,7 +136,7 @@ export default function MapPage() {
       {/* Top status bar */}
       <Box sx={{ position: 'absolute', top: 16, left: 16, zIndex: 1000, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         <Chip
-          label={loading ? 'Загрузка...' : `${data.length} самолётов`}
+          label={loading ? 'Загрузка...' : `${filteredData.length} / ${data.length} ВС`}
           size="small"
           color="primary"
           icon={loading ? <CircularProgress size={12} color="inherit" /> : undefined}
@@ -137,6 +150,18 @@ export default function MapPage() {
             sx={{ color: '#90caf9', borderColor: '#1e88e5', backdropFilter: 'blur(8px)' }}
           />
         )}
+        {/* Filter chips */}
+        {(['all', 'airborne', 'ground'] as FilterMode[]).map((f) => (
+          <Chip
+            key={f}
+            label={f === 'all' ? 'Все' : f === 'airborne' ? '✈ В воздухе' : '⏚ На земле'}
+            size="small"
+            variant={filter === f ? 'filled' : 'outlined'}
+            color={filter === f ? (f === 'airborne' ? 'primary' : f === 'ground' ? 'default' : 'secondary') : 'default'}
+            onClick={() => setFilter(f)}
+            sx={{ cursor: 'pointer', backdropFilter: 'blur(8px)' }}
+          />
+        ))}
       </Box>
 
       {/* Error */}
@@ -145,6 +170,36 @@ export default function MapPage() {
           <Alert severity="error" onClose={() => setError(null)}>{error}</Alert>
         </Box>
       )}
+
+      {/* Stats panel (top-right) */}
+      <Paper
+        elevation={4}
+        sx={{
+          position: 'absolute', top: 16, right: 16, zIndex: 1000,
+          p: 1.5, minWidth: 190,
+          background: 'rgba(13,20,38,0.88)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(30,136,229,0.3)',
+        }}
+      >
+        <Typography variant="caption" sx={{ color: '#90caf9', fontWeight: 700, display: 'block', mb: 1 }}>
+          Снапшот
+        </Typography>
+        {stats.loading && <LinearProgress sx={{ mb: 1 }} />}
+        {stats.data && [
+          { label: 'Всего ВС',    value: stats.data.total,          color: '#90caf9' },
+          { label: 'В воздухе',  value: stats.data.airborne,       color: '#42a5f5' },
+          { label: 'На земле',   value: stats.data.on_ground,      color: '#546e7a' },
+          { label: 'Стран',      value: stats.data.countries_count, color: '#66bb6a' },
+          { label: 'Макс. ск.', value: stats.data.max_speed_kmh != null ? `${Math.round(stats.data.max_speed_kmh)} км/ч` : '—', color: '#ffa726' },
+          { label: 'Макс. выс.', value: stats.data.max_altitude_m != null ? `${Math.round(stats.data.max_altitude_m)} м` : '—', color: '#ab47bc' },
+        ].map(({ label, value, color }) => (
+          <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: '#78909c' }}>{label}</Typography>
+            <Typography variant="caption" sx={{ color, fontWeight: 700, fontFamily: 'monospace' }}>{value}</Typography>
+          </Box>
+        ))}
+      </Paper>
 
       {/* Legend */}
       <Paper

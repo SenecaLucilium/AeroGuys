@@ -2,6 +2,7 @@ import client from './client'
 import type {
   AircraftPosition, DailyUsage, AircraftRoute,
   AircraftType, AltitudeProfile, ExtremeVerticalRate, BBoxParams,
+  SpeedBucket, AltitudeBucket, CountryCount, SnapshotStats, FlightPhase,
 } from './types'
 
 // GET /api/aircraft/positions
@@ -53,6 +54,36 @@ export async function getExtremeVerticalRates(params?: {
   return data
 }
 
+// GET /api/aircraft/speed-distribution
+export async function getSpeedDistribution(): Promise<SpeedBucket[]> {
+  const { data } = await client.get<SpeedBucket[]>('/api/aircraft/speed-distribution')
+  return data
+}
+
+// GET /api/aircraft/altitude-distribution
+export async function getAltitudeDistribution(): Promise<AltitudeBucket[]> {
+  const { data } = await client.get<AltitudeBucket[]>('/api/aircraft/altitude-distribution')
+  return data
+}
+
+// GET /api/aircraft/country-distribution
+export async function getCountryDistribution(params?: { limit?: number }): Promise<CountryCount[]> {
+  const { data } = await client.get<CountryCount[]>('/api/aircraft/country-distribution', { params })
+  return data
+}
+
+// GET /api/aircraft/snapshot-stats
+export async function getSnapshotStats(): Promise<SnapshotStats> {
+  const { data } = await client.get<SnapshotStats>('/api/aircraft/snapshot-stats')
+  return data
+}
+
+// GET /api/aircraft/flight-phases
+export async function getFlightPhases(): Promise<FlightPhase[]> {
+  const { data } = await client.get<FlightPhase[]>('/api/aircraft/flight-phases')
+  return data
+}
+
 // GET /api/aircraft/{icao24}/usage
 export async function getAircraftUsage(icao24: string, params?: { days?: number }): Promise<DailyUsage[]> {
   const { data } = await client.get<DailyUsage[]>(`/api/aircraft/${icao24}/usage`, { params })
@@ -64,3 +95,6 @@ export async function getAircraftRoutes(icao24: string, params?: { days?: number
   const { data } = await client.get<AircraftRoute[]>(`/api/aircraft/${icao24}/routes`, { params })
   return data
 }
+
+
+// GET /api/aircraft/positions

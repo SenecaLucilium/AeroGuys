@@ -136,3 +136,64 @@ export interface BBoxParams {
   min_lon?: number
   max_lon?: number
 }
+
+// ─── Распределения и агрегаты (снапшот) ────────────────────────────────────
+
+export interface SpeedBucket {
+  bucket: number
+  label: string
+  min_kmh: number
+  max_kmh: number
+  count: number
+}
+
+export interface AltitudeBucket {
+  bucket: number
+  label: string
+  min_m: number
+  max_m: number
+  count: number
+}
+
+export interface CountryCount {
+  country: string
+  aircraft_count: number
+}
+
+export interface SnapshotStats {
+  total: number
+  airborne: number
+  on_ground: number
+  max_speed_kmh: number | null
+  max_altitude_m: number | null
+  countries_count: number
+}
+
+export interface FlightPhase {
+  phase: 'climb' | 'descent' | 'level'
+  count: number
+}
+
+// ─── Маршруты (доп.) ──────────────────────────────────────────────────────────
+
+export interface DurationBucket {
+  bucket: number
+  label: string
+  min_min: number
+  max_min: number
+  count: number
+}
+
+export interface AirlineStat {
+  airline_code: string
+  flights: number
+}
+
+// ─── Аэропорты (доп.) ────────────────────────────────────────────────────────
+
+export interface DailyTrend {
+  date: string
+  departures: number
+  arrivals: number
+  total: number
+}

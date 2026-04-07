@@ -40,3 +40,11 @@ class AirportStatsSchema(BaseModel):
     total_flights: int
     first_seen: datetime
     last_seen: datetime
+
+
+class DailyTrendSchema(BaseModel):
+    """Суточная динамика рейсов через аэропорт."""
+    date: str
+    departures: int
+    arrivals: int
+    total: int

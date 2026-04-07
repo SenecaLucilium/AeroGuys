@@ -964,6 +964,218 @@ class DatabaseQueries:
             })
         return result
 
+    # ==================  РАСПРЕДЕЛЕНИЯ И АГРЕГАТЫ  ==================
+
+    def get_speed_distribution(self) -> List[Dict]:
+        """Гистограмма скоростей самолётов из последнего снапшота (10 бакетов 0–1200 км/ч)."""
+        BUCKET_SIZE = 120
+        query = """
+            SELECT
+                width_bucket(sv.velocity * 3.6, 0, 1200, 10) AS bucket,
+                COUNT(*) AS cnt
+            FROM state_vectors sv
+            WHERE sv.snapshot_id = (
+                SELECT id FROM snapshots ORDER BY api_timestamp DESC LIMIT 1
+            )
+                AND sv.velocity IS NOT NULL
+                AND sv.on_ground = FALSE
+                AND sv.velocity > 0
+            GROUP BY bucket
+            ORDER BY bucket
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            b = int(row[0])
+            result.append({
+                'bucket': b,
+                'label': f'{(b-1)*BUCKET_SIZE}–{b*BUCKET_SIZE}',
+                'min_kmh': (b - 1) * BUCKET_SIZE,
+                'max_kmh': b * BUCKET_SIZE,
+                'count': row[1],
+            })
+        return result
+
+    def get_country_distribution(self, limit: int = 15) -> List[Dict]:
+        """Топ стран по числу уникальных ВС в последнем снапшоте."""
+        query = """
+            SELECT origin_country, COUNT(DISTINCT icao24) AS aircraft_count
+            FROM state_vectors
+            WHERE snapshot_id = (
+                SELECT id FROM snapshots ORDER BY api_timestamp DESC LIMIT 1
+            )
+                AND latitude IS NOT NULL
+            GROUP BY origin_country
+            ORDER BY aircraft_count DESC
+            LIMIT %s
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query, [limit])
+            return [{'country': row[0], 'aircraft_count': row[1]} for row in cursor.fetchall()]
+
+    def get_altitude_distribution(self) -> List[Dict]:
+        """Гистограмма высот самолётов из последнего снапшота (10 бакетов 0–15 000 м)."""
+        BUCKET_SIZE = 1500
+        query = """
+            SELECT
+                width_bucket(sv.baro_altitude, 0, 15000, 10) AS bucket,
+                COUNT(*) AS cnt
+            FROM state_vectors sv
+            WHERE sv.snapshot_id = (
+                SELECT id FROM snapshots ORDER BY api_timestamp DESC LIMIT 1
+            )
+                AND sv.baro_altitude IS NOT NULL
+                AND sv.baro_altitude >= 0
+                AND sv.on_ground = FALSE
+            GROUP BY bucket
+            ORDER BY bucket
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query)
+            rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            b = int(row[0])
+            min_m = (b - 1) * BUCKET_SIZE
+            max_m = b * BUCKET_SIZE
+            result.append({
+                'bucket': b,
+                'label': f'{min_m//1000}–{max_m//1000}k м',
+                'min_m': min_m,
+                'max_m': max_m,
+                'count': row[1],
+            })
+        return result
+
+    def get_snapshot_stats(self) -> Dict:
+        """Агрегированная статистика последнего снапшота."""
+        query = """
+            SELECT
+                COUNT(*)                                                AS total,
+                COUNT(CASE WHEN on_ground = FALSE THEN 1 END)           AS airborne,
+                COUNT(CASE WHEN on_ground = TRUE  THEN 1 END)           AS on_ground_cnt,
+                ROUND(MAX(velocity * 3.6)::numeric, 0)                  AS max_speed_kmh,
+                ROUND(MAX(baro_altitude)::numeric, 0)                   AS max_altitude_m,
+                COUNT(DISTINCT origin_country)                          AS countries_count
+            FROM state_vectors
+            WHERE snapshot_id = (
+                SELECT id FROM snapshots ORDER BY api_timestamp DESC LIMIT 1
+            )
+                AND latitude IS NOT NULL
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query)
+            row = cursor.fetchone()
+        if not row or row[0] == 0:
+            return {'total': 0, 'airborne': 0, 'on_ground': 0,
+                    'max_speed_kmh': None, 'max_altitude_m': None, 'countries_count': 0}
+        return {
+            'total': row[0] or 0,
+            'airborne': row[1] or 0,
+            'on_ground': row[2] or 0,
+            'max_speed_kmh': float(row[3]) if row[3] else None,
+            'max_altitude_m': float(row[4]) if row[4] else None,
+            'countries_count': row[5] or 0,
+        }
+
+    def get_duration_distribution(self, days: int = 7) -> List[Dict]:
+        """Гистограмма длительностей рейсов за N дней (12 бакетов по 60 мин, 0–720 мин)."""
+        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        BUCKET_SIZE = 60
+        query = """
+            SELECT
+                width_bucket((last_seen - first_seen)::numeric / 60, 0, 720, 12) AS bucket,
+                COUNT(*) AS cnt
+            FROM flights
+            WHERE first_seen >= %s
+                AND last_seen > first_seen
+                AND (last_seen - first_seen) BETWEEN 300 AND 43200
+            GROUP BY bucket
+            ORDER BY bucket
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query, [cutoff])
+            rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            b = int(row[0])
+            result.append({
+                'bucket': b,
+                'label': f'{(b-1)*BUCKET_SIZE}–{b*BUCKET_SIZE}м',
+                'min_min': (b - 1) * BUCKET_SIZE,
+                'max_min': b * BUCKET_SIZE,
+                'count': row[1],
+            })
+        return result
+
+    def get_top_airlines_by_flight_count(self, days: int = 7, limit: int = 15) -> List[Dict]:
+        """Топ авиакомпаний по числу рейсов (первые 3 буквы позывного = код ИКАО)."""
+        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        query = """
+            SELECT
+                LEFT(UPPER(TRIM(callsign)), 3) AS airline_code,
+                COUNT(*)                        AS flights
+            FROM flights
+            WHERE callsign IS NOT NULL
+                AND TRIM(callsign) != ''
+                AND first_seen >= %s
+                AND LEFT(UPPER(TRIM(callsign)), 3) ~ '^[A-Z]{3}$'
+            GROUP BY airline_code
+            ORDER BY flights DESC
+            LIMIT %s
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query, [cutoff, limit])
+            return [{'airline_code': row[0], 'flights': row[1]} for row in cursor.fetchall()]
+
+    def get_airport_daily_trend(self, airport: str, days: int = 14) -> List[Dict]:
+        """Ежедневная динамика рейсов через аэропорт за N дней."""
+        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        airport = airport.upper()
+        query = """
+            SELECT
+                DATE(TO_TIMESTAMP(first_seen))                                  AS flight_date,
+                COUNT(CASE WHEN est_departure_airport = %s THEN 1 END)          AS departures,
+                COUNT(CASE WHEN est_arrival_airport   = %s THEN 1 END)          AS arrivals,
+                COUNT(*)                                                         AS total
+            FROM flights
+            WHERE first_seen >= %s
+                AND (est_departure_airport = %s OR est_arrival_airport = %s)
+            GROUP BY flight_date
+            ORDER BY flight_date
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query, [airport, airport, cutoff, airport, airport])
+            return [
+                {'date': str(row[0]), 'departures': row[1], 'arrivals': row[2], 'total': row[3]}
+                for row in cursor.fetchall()
+            ]
+
+    def get_vertical_rate_distribution(self) -> List[Dict]:
+        """Распределение вертикальных скоростей (набор / снижение / горизонт) в текущем снапшоте."""
+        query = """
+            SELECT
+                CASE
+                    WHEN vertical_rate >  5 THEN 'climb'
+                    WHEN vertical_rate < -5 THEN 'descent'
+                    ELSE 'level'
+                END AS phase,
+                COUNT(*) AS cnt
+            FROM state_vectors
+            WHERE snapshot_id = (
+                SELECT id FROM snapshots ORDER BY api_timestamp DESC LIMIT 1
+            )
+                AND vertical_rate IS NOT NULL
+                AND on_ground = FALSE
+                AND latitude IS NOT NULL
+            GROUP BY phase
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query)
+            return [{'phase': row[0], 'count': row[1]} for row in cursor.fetchall()]
+
     # ==================  ЭКСПОРТ  ==================
 
     def export_flights_to_csv(self, start_time: datetime, 

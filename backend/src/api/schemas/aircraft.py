@@ -50,3 +50,45 @@ class ExtremeVerticalRateSchema(BaseModel):
     direction: str = Field(description="'climb' или 'descent'")
     last_contact: datetime
     origin_country: str
+
+
+# ─── Новые схемы распределений ────────────────────────────────────────────────
+
+class SpeedBucketSchema(BaseModel):
+    """Один бакет гистограммы скоростей."""
+    bucket: int
+    label: str
+    min_kmh: int
+    max_kmh: int
+    count: int
+
+
+class AltitudeBucketSchema(BaseModel):
+    """Один бакет гистограммы высот."""
+    bucket: int
+    label: str
+    min_m: int
+    max_m: int
+    count: int
+
+
+class CountryCountSchema(BaseModel):
+    """Страна и количество её самолётов в снапшоте."""
+    country: str
+    aircraft_count: int
+
+
+class SnapshotStatsSchema(BaseModel):
+    """Агрегированная статистика последнего снапшота."""
+    total: int
+    airborne: int
+    on_ground: int
+    max_speed_kmh: Optional[float] = None
+    max_altitude_m: Optional[float] = None
+    countries_count: int
+
+
+class FlightPhaseSchema(BaseModel):
+    """Фаза полёта (набор/снижение/горизонт) и количество ВС."""
+    phase: str
+    count: int

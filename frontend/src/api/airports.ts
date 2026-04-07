@@ -1,5 +1,5 @@
 import client from './client'
-import type { AirportStats, PeakHours, Destination, Throughput } from './types'
+import type { AirportStats, PeakHours, Destination, Throughput, DailyTrend } from './types'
 
 // GET /api/airports/stats
 export async function getAirportStats(params?: { days?: number }): Promise<AirportStats[]> {
@@ -19,6 +19,12 @@ export async function getAirportDestinations(icao: string, params?: { days?: num
   return data
 }
 
+// GET /api/airports/{icao}/daily-trend
+export async function getAirportDailyTrend(icao: string, params?: { days?: number }): Promise<DailyTrend[]> {
+  const { data } = await client.get<DailyTrend[]>(`/api/airports/${icao}/daily-trend`, { params })
+  return data
+}
+
 // GET /api/airports/throughput
 // axios сериализует массив как airports=X&airports=Y
 export async function getAirportThroughput(airports: string[], params?: { days?: number }): Promise<Throughput[]> {
@@ -34,3 +40,5 @@ export async function getAirportThroughput(airports: string[], params?: { days?:
   })
   return data
 }
+
+
