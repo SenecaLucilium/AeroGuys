@@ -195,6 +195,8 @@ function DestinationsPieChart({ data }: { data: Destination[] }) {
         <Tooltip
           contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
           formatter={(v: number) => [v, 'Рейсов']}
+          itemStyle={{ color: '#e3f2fd' }}
+          labelStyle={{ color: '#90caf9', fontWeight: 700 }}
         />
         <Legend wrapperStyle={{ fontSize: 10, color: '#b0bec5' }} />
       </PieChart>

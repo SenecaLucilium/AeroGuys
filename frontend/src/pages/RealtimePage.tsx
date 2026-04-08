@@ -84,6 +84,7 @@ function BusynessChart({ data }: { data: AirportBusyness[] }) {
         <Tooltip
           contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
           labelStyle={{ color: C.label, fontWeight: 700 }}
+          itemStyle={{ color: '#e3f2fd' }}
         />
         <Legend wrapperStyle={{ fontSize: 11, color: '#b0bec5' }} />
         <Bar dataKey="dep" name="Вылеты" fill={C.blue} radius={[0, 3, 3, 0]} maxBarSize={14} />
@@ -119,7 +120,7 @@ function CountryChart() {
   const sorted = data ? [...data].sort((a, b) => a.aircraft_count - b.aircraft_count).slice(-12) : []
   return (
     <SectionCard
-      title="\u0422\u043e\u043f \u0441\u0442\u0440\u0430\u043d \u043f\u043e \u0447\u0438\u0441\u043b\u0443 \u0412\u0421 \u0432 \u0441\u043d\u0430\u043f\u0448\u043e\u0442\u0435"
+      title="Топ стран по числу ВС в снапшоте"
       loading={loading} error={error} refetch={refetch}
     >
       <ResponsiveContainer width="100%" height={300}>
@@ -129,12 +130,9 @@ function CountryChart() {
           <YAxis dataKey="country" type="category" tick={{ fill: C.label, fontSize: 10 }} width={100} />
           <Tooltip
             contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
-            formatter={(v: number) => [v, '\u0421\u0430\u043c\u043e\u043b\u0451\u0442\u043e\u0432']}
+            formatter={(v: number) => [v, 'Самолётов']}
           />
-          {sorted.map((_, i) => (
-            <Cell key={i} fill={COUNTRY_COLORS[i % COUNTRY_COLORS.length]} />
-          ))}
-          <Bar dataKey="aircraft_count" name="\u0421\u0430\u043c\u043e\u043b\u0451\u0442\u043e\u0432" radius={[0, 3, 3, 0]} maxBarSize={16}>
+          <Bar dataKey="aircraft_count" name="Самолётов" radius={[0, 3, 3, 0]} maxBarSize={16}>
             {sorted.map((_, i) => (
               <Cell key={i} fill={COUNTRY_COLORS[i % COUNTRY_COLORS.length]} />
             ))}
@@ -173,6 +171,8 @@ function PhasesDonut() {
         </Pie>
         <Tooltip
           contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
+          labelStyle={{ color: C.label, fontWeight: 700 }}
+          itemStyle={{ color: '#e3f2fd' }}
         />
         <Legend wrapperStyle={{ fontSize: 11, color: '#b0bec5' }} />
       </PieChart>

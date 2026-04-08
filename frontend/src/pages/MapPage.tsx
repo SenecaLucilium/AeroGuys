@@ -81,8 +81,11 @@ export default function MapPage() {
       center: [30, 15],
       zoom: 3,
       preferCanvas: true,
+      worldCopyJump: false,
+      maxBounds: [[-90, -180], [90, 180]],
+      maxBoundsViscosity: 1.0,
     })
-    L.tileLayer(TILE_URL, { attribution: TILE_ATTR, maxZoom: 18 }).addTo(map)
+    L.tileLayer(TILE_URL, { attribution: TILE_ATTR, maxZoom: 18, noWrap: true }).addTo(map)
     groupRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     fetchData()

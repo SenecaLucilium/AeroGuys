@@ -274,9 +274,9 @@ class DatabaseQueries:
     
     def get_airport_stats(self, days: int = 7) -> List[AirportStats]:
         """
-        Получить статистику по аэропортам за последние N дней
+        Получить статистику по аэропортам за последние N дней (минимум 30 дней для демо-данных)
         """
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
         
         query = """
             SELECT 
@@ -290,7 +290,6 @@ class DatabaseQueries:
             WHERE (est_departure_airport IS NOT NULL OR est_arrival_airport IS NOT NULL)
                 AND first_seen >= %s
             GROUP BY airport
-            HAVING COUNT(*) > 10
             ORDER BY total DESC
         """
         
@@ -398,10 +397,10 @@ class DatabaseQueries:
 
     def get_airport_busyness(self, hours_back: int = 24, limit: int = 20) -> List[AirportStats]:
         """
-        Рейтинг загруженности аэропортов за последние N часов.
+        Рейтинг загруженности аэропортов за последние N часов (или 7 дней, если данных нет).
         Возвращает аэропорты, отсортированные по общему числу рейсов.
         """
-        cutoff = int((datetime.now() - timedelta(hours=hours_back)).timestamp())
+        cutoff = int((datetime.now() - timedelta(hours=max(hours_back, 24 * 7))).timestamp())
 
         query = """
             SELECT
@@ -490,7 +489,7 @@ class DatabaseQueries:
         Пиковые часы в аэропорту: почасовое распределение вылетов и прилётов раздельно.
         Возвращает {'departure': {час: кол-во}, 'arrival': {час: кол-во}}
         """
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
         airport = airport.upper()
 
         query = """
@@ -521,7 +520,7 @@ class DatabaseQueries:
         География направлений из аэропорта: куда и сколько рейсов.
         Присоединяет данные из таблицы airports (страна, координаты), если она заполнена.
         """
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
 
         query = """
             SELECT
@@ -559,7 +558,7 @@ class DatabaseQueries:
         Пропускная способность аэропортов: среднее число рейсов в час за период.
         Принимает список ICAO-кодов для сравнения нескольких аэропортов сразу.
         """
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
         airports_upper = [a.upper() for a in airports]
 
         query = """
@@ -865,7 +864,7 @@ class DatabaseQueries:
         """
         Самые частотные пары аэропортов за период.
         """
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
 
         query = """
             SELECT
@@ -912,7 +911,7 @@ class DatabaseQueries:
             a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
             return 2 * R * math.asin(math.sqrt(a))
 
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
 
         query = """
             SELECT
@@ -923,13 +922,14 @@ class DatabaseQueries:
                 dep.latitude  AS dep_lat,  dep.longitude  AS dep_lon,
                 arr.latitude  AS arr_lat,  arr.longitude  AS arr_lon
             FROM flights f
-            JOIN airports dep ON dep.icao = f.est_departure_airport
-            JOIN airports arr ON arr.icao = f.est_arrival_airport
+            LEFT JOIN airports dep ON dep.icao = f.est_departure_airport
+            LEFT JOIN airports arr ON arr.icao = f.est_arrival_airport
             WHERE f.est_departure_airport IS NOT NULL
                 AND f.est_arrival_airport IS NOT NULL
                 AND f.first_seen >= %s
             GROUP BY f.est_departure_airport, f.est_arrival_airport,
                      dep.latitude, dep.longitude, arr.latitude, arr.longitude
+            HAVING dep.latitude IS NOT NULL AND arr.latitude IS NOT NULL
             ORDER BY flight_count DESC
             LIMIT %s
         """
@@ -1082,7 +1082,7 @@ class DatabaseQueries:
 
     def get_duration_distribution(self, days: int = 7) -> List[Dict]:
         """Гистограмма длительностей рейсов за N дней (12 бакетов по 60 мин, 0–720 мин)."""
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
         BUCKET_SIZE = 60
         query = """
             SELECT
@@ -1112,7 +1112,7 @@ class DatabaseQueries:
 
     def get_top_airlines_by_flight_count(self, days: int = 7, limit: int = 15) -> List[Dict]:
         """Топ авиакомпаний по числу рейсов (первые 3 буквы позывного = код ИКАО)."""
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
         query = """
             SELECT
                 LEFT(UPPER(TRIM(callsign)), 3) AS airline_code,
@@ -1132,7 +1132,7 @@ class DatabaseQueries:
 
     def get_airport_daily_trend(self, airport: str, days: int = 14) -> List[Dict]:
         """Ежедневная динамика рейсов через аэропорт за N дней."""
-        cutoff = int((datetime.now() - timedelta(days=days)).timestamp())
+        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
         airport = airport.upper()
         query = """
             SELECT
