@@ -6,7 +6,7 @@ AeroGuys REST API — точка входа.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routers import realtime, airports, aircraft, routes, export
+from api.routers import realtime, airports, aircraft, routes, export, init
 
 app = FastAPI(
     title="AeroGuys API",
@@ -23,11 +23,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
 # ---------- Роутеры ----------
+app.include_router(init.router,     prefix="/api/init",     tags=["Инициализация"])
 app.include_router(realtime.router, prefix="/api/realtime", tags=["Реальное время"])
 app.include_router(airports.router, prefix="/api/airports", tags=["Аэропорты"])
 app.include_router(aircraft.router, prefix="/api/aircraft", tags=["Воздушные суда"])

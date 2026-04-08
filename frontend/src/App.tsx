@@ -1,19 +1,29 @@
 import {
   Box, Drawer, List, ListItemButton, ListItemIcon, ListItemText,
-  Typography, AppBar, Toolbar, Divider,
+  Typography, AppBar, Toolbar, Divider, Tooltip,
+  CircularProgress, Snackbar, Alert,
 } from '@mui/material'
-import AirlinesIcon       from '@mui/icons-material/Airlines'
-import RadarIcon          from '@mui/icons-material/Radar'
-import LocationCityIcon   from '@mui/icons-material/LocationCity'
-import FlightIcon         from '@mui/icons-material/Flight'
-import AltRouteIcon       from '@mui/icons-material/AltRoute'
-import PublicIcon         from '@mui/icons-material/Public'
+import AirlinesIcon               from '@mui/icons-material/Airlines'
+import RadarIcon                  from '@mui/icons-material/Radar'
+import LocationCityIcon           from '@mui/icons-material/LocationCity'
+import FlightIcon                 from '@mui/icons-material/Flight'
+import AltRouteIcon               from '@mui/icons-material/AltRoute'
+import PublicIcon                 from '@mui/icons-material/Public'
+import SettingsBackupRestoreIcon  from '@mui/icons-material/SettingsBackupRestore'
+import StorageIcon                from '@mui/icons-material/Storage'
+import AssessmentIcon             from '@mui/icons-material/Assessment'
+import { useState }               from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+
 import RealtimePage from '@pages/RealtimePage'
 import AirportsPage from '@pages/AirportsPage'
 import AircraftPage from '@pages/AircraftPage'
 import RoutesPage   from '@pages/RoutesPage'
 import MapPage      from '@pages/MapPage'
+import InitPage     from '@pages/InitPage'
+
+import { DataProvider, useDataContext } from '@/context/DataContext'
+import { downloadRawCsv, downloadAnalyticsCsv } from '@api/export'
 
 const DRAWER_WIDTH = 240
 
@@ -28,6 +38,28 @@ const NAV = [
 function NavDrawer() {
   const location = useLocation()
   const navigate  = useNavigate()
+  const { initInfo, reset } = useDataContext()
+
+  const [exportLoading, setExportLoading] = useState<'raw' | 'analytics' | null>(null)
+  const [exportError,   setExportError]   = useState<string | null>(null)
+
+  async function handleExport(type: 'raw' | 'analytics') {
+    setExportLoading(type)
+    setExportError(null)
+    try {
+      if (type === 'raw') await downloadRawCsv()
+      else                await downloadAnalyticsCsv()
+    } catch (e: any) {
+      setExportError(e.message ?? 'Ошибка экспорта')
+    } finally {
+      setExportLoading(null)
+    }
+  }
+
+  function handleReset() {
+    reset()
+    navigate('/init', { replace: true })
+  }
 
   return (
     <Drawer
@@ -40,6 +72,8 @@ function NavDrawer() {
           boxSizing: 'border-box',
           background: 'linear-gradient(180deg, #0d1426 0%, #080d1a 100%)',
           borderRight: '1px solid rgba(30, 136, 229, 0.18)',
+          display: 'flex',
+          flexDirection: 'column',
         },
       }}
     >
@@ -58,6 +92,7 @@ function NavDrawer() {
 
       <Divider />
 
+      {/* Main navigation */}
       <List sx={{ pt: 1.5, px: 1 }}>
         {NAV.map(({ path, label, icon }) => {
           const active = location.pathname === path
@@ -74,15 +109,9 @@ function NavDrawer() {
                   borderLeft: '3px solid #1e88e5',
                   pl: '13px',
                   '& .MuiListItemIcon-root': { color: 'primary.main' },
-                  '& .MuiListItemText-primary': {
-                    color: 'primary.main',
-                    fontWeight: 600,
-                  },
+                  '& .MuiListItemText-primary': { color: 'primary.main', fontWeight: 600 },
                 },
-                '&:not(.Mui-selected)': {
-                  pl: 2,
-                  borderLeft: '3px solid transparent',
-                },
+                '&:not(.Mui-selected)': { pl: 2, borderLeft: '3px solid transparent' },
               }}
             >
               <ListItemIcon sx={{ minWidth: 38, color: active ? 'primary.main' : 'text.secondary' }}>
@@ -97,21 +126,129 @@ function NavDrawer() {
         })}
       </List>
 
-      {/* Footer */}
-      <Box sx={{ mt: 'auto', p: 2 }}>
-        <Divider sx={{ mb: 1.5 }} />
-        <Typography variant="caption" color="text.disabled" display="block">
-          OpenSky Network · PostgreSQL
-        </Typography>
-        <Typography variant="caption" color="text.disabled">
-          AeroGuys v1.0
-        </Typography>
+      {/* ── Bottom section ──────────────────────────────────────── */}
+      <Box sx={{ mt: 'auto', px: 1, pb: 1.5 }}>
+        <Divider sx={{ mb: 1 }} />
+
+        {/* Data source badge */}
+        {initInfo && (
+          <Box sx={{ px: 1, mb: 0.5 }}>
+            <Typography variant="caption" color="text.disabled">
+              Источник:{' '}
+              <Typography component="span" variant="caption" color="primary.main" fontWeight={600}>
+                {initInfo.mode === 'realtime' ? 'OpenSky API' : 'CSV-файл'}
+              </Typography>
+            </Typography>
+          </Box>
+        )}
+
+        {/* Export raw CSV */}
+        <Tooltip title="Скачать все сырые рейсы в CSV" placement="right">
+          <span>
+            <ListItemButton
+              onClick={() => handleExport('raw')}
+              disabled={exportLoading === 'raw'}
+              sx={{
+                borderRadius: 2, mb: 0.5, pl: 2,
+                borderLeft: '3px solid transparent',
+                opacity: exportLoading === 'raw' ? 0.6 : 1,
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 38, color: 'text.secondary' }}>
+                {exportLoading === 'raw'
+                  ? <CircularProgress size={18} color="inherit" />
+                  : <StorageIcon fontSize="small" />}
+              </ListItemIcon>
+              <ListItemText
+                primary="Сырые данные"
+                primaryTypographyProps={{ fontSize: '0.82rem', color: 'text.secondary' }}
+              />
+            </ListItemButton>
+          </span>
+        </Tooltip>
+
+        {/* Export analytics ZIP */}
+        <Tooltip title="Скачать всю аналитику в ZIP (4 CSV внутри)" placement="right">
+          <span>
+            <ListItemButton
+              onClick={() => handleExport('analytics')}
+              disabled={exportLoading === 'analytics'}
+              sx={{
+                borderRadius: 2, mb: 0.5, pl: 2,
+                borderLeft: '3px solid transparent',
+                opacity: exportLoading === 'analytics' ? 0.6 : 1,
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 38, color: 'text.secondary' }}>
+                {exportLoading === 'analytics'
+                  ? <CircularProgress size={18} color="inherit" />
+                  : <AssessmentIcon fontSize="small" />}
+              </ListItemIcon>
+              <ListItemText
+                primary="Вся аналитика"
+                primaryTypographyProps={{ fontSize: '0.82rem', color: 'text.secondary' }}
+              />
+            </ListItemButton>
+          </span>
+        </Tooltip>
+
+        {/* Reset / change data source */}
+        <Tooltip title="Вернуться к выбору источника данных" placement="right">
+          <ListItemButton
+            onClick={handleReset}
+            sx={{
+              borderRadius: 2, mb: 0.5, pl: 2,
+              borderLeft: '3px solid transparent',
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 38, color: 'text.secondary' }}>
+              <SettingsBackupRestoreIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Сменить данные"
+              primaryTypographyProps={{ fontSize: '0.82rem', color: 'text.secondary' }}
+            />
+          </ListItemButton>
+        </Tooltip>
+
+        <Box sx={{ px: 1, mt: 0.5 }}>
+          <Divider sx={{ mb: 1 }} />
+          <Typography variant="caption" color="text.disabled" display="block">
+            OpenSky Network · PostgreSQL
+          </Typography>
+          <Typography variant="caption" color="text.disabled">
+            AeroGuys v1.0
+          </Typography>
+        </Box>
       </Box>
+
+      {/* Export error snackbar */}
+      <Snackbar
+        open={!!exportError}
+        autoHideDuration={4000}
+        onClose={() => setExportError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setExportError(null)} sx={{ width: '100%' }}>
+          {exportError}
+        </Alert>
+      </Snackbar>
     </Drawer>
   )
 }
 
-function AppLayout() {
+// ─── Layout when user is NOT yet initialised ─────────────────────────────────
+function InitLayout() {
+  return (
+    <Routes>
+      <Route path="/init" element={<InitPage />} />
+      <Route path="*"    element={<Navigate to="/init" replace />} />
+    </Routes>
+  )
+}
+
+// ─── Layout when user IS initialised ─────────────────────────────────────────
+function MainLayout() {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       <AppBar
@@ -137,16 +274,11 @@ function AppLayout() {
 
       <Box
         component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          mt: '48px',
-          minHeight: '100vh',
-          bgcolor: 'background.default',
-        }}
+        sx={{ flexGrow: 1, p: 3, mt: '48px', minHeight: '100vh', bgcolor: 'background.default' }}
       >
         <Routes>
-          <Route path="/" element={<Navigate to="/realtime" replace />} />
+          <Route path="/"         element={<Navigate to="/realtime" replace />} />
+          <Route path="/init"     element={<Navigate to="/realtime" replace />} />
           <Route path="/realtime" element={<RealtimePage />} />
           <Route path="/airports" element={<AirportsPage />} />
           <Route path="/aircraft" element={<AircraftPage />} />
@@ -158,10 +290,18 @@ function AppLayout() {
   )
 }
 
+// ─── Root: chooses which layout to render based on init state ─────────────────
+function AppShell() {
+  const { initInfo } = useDataContext()
+  return initInfo ? <MainLayout /> : <InitLayout />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <AppLayout />
+      <DataProvider>
+        <AppShell />
+      </DataProvider>
     </BrowserRouter>
   )
 }
