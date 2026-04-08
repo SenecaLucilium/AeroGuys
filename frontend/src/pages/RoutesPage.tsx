@@ -1,18 +1,16 @@
 import { useState } from 'react'
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Button, Grid, LinearProgress,
-  ToggleButton, ToggleButtonGroup, Card, CardContent, TextField, Alert, Chip,
+  TableHead, TableRow, Grid, LinearProgress,
+  ToggleButton, ToggleButtonGroup,
 } from '@mui/material'
 import RouteIcon         from '@mui/icons-material/AltRoute'
-import DownloadIcon      from '@mui/icons-material/FileDownload'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, Cell, ScatterChart, Scatter, ZAxis, ReferenceLine,
 } from 'recharts'
 import { SectionCard } from '@/components/DataBlock'
 import { usePopularRoutes, useRouteEfficiency, useDurationDistribution, useTopAirlines } from '@hooks/useRoutes'
-import { downloadFlightsCsv } from '@api/export'
 import type { PopularRoute, RouteEfficiency, DurationBucket, AirlineStat } from '@api/types'
 
 const C = {
@@ -217,66 +215,6 @@ function AirlinesChart({ data }: { data: AirlineStat[] }) {
   )
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
-function ExportSection() {
-  const [csvStart, setCsvStart] = useState('')
-  const [csvEnd,   setCsvEnd]   = useState('')
-  const [status,   setStatus]   = useState<'idle'|'loading'|'done'|'error'>('idle')
-  const [errMsg,   setErrMsg]   = useState<string | null>(null)
-
-  const handleExport = async () => {
-    if (!csvStart || !csvEnd) return
-    setStatus('loading')
-    setErrMsg(null)
-    try {
-      await downloadFlightsCsv(csvStart, csvEnd)
-      setStatus('done')
-    } catch (e) {
-      setStatus('error')
-      setErrMsg(e instanceof Error ? e.message : String(e))
-    }
-  }
-
-  return (
-    <Card sx={{ border: '1px solid rgba(30,136,229,0.2)', mb: 3 }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-          <DownloadIcon color="primary" />
-          <Typography variant="h6">Экспорт рейсов в CSV</Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField
-            label="Начало"
-            value={csvStart}
-            onChange={(e) => setCsvStart(e.target.value)}
-            size="small"
-            sx={{ width: 230 }}
-            placeholder="2026-01-01T00:00:00"
-          />
-          <TextField
-            label="Конец"
-            value={csvEnd}
-            onChange={(e) => setCsvEnd(e.target.value)}
-            size="small"
-            sx={{ width: 230 }}
-            placeholder="2026-01-31T23:59:59"
-          />
-          <Button
-            variant="contained"
-            startIcon={<DownloadIcon />}
-            onClick={handleExport}
-            disabled={status === 'loading' || !csvStart || !csvEnd}
-          >
-            {status === 'loading' ? 'Скачивание…' : status === 'done' ? 'Готово' : 'Скачать CSV'}
-          </Button>
-          {status === 'done' && <Chip label="Файл сохранён ✓" color="success" size="small" variant="outlined" />}
-          {status === 'error' && <Alert severity="error" sx={{ py: 0.5 }}>{errMsg}</Alert>}
-        </Box>
-      </CardContent>
-    </Card>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RoutesPage() {
   const [period, setPeriod] = useState<Period>(7)
@@ -362,9 +300,6 @@ export default function RoutesPage() {
         </Typography>
         {efficiency.data && <EfficiencyScatter data={efficiency.data} />}
       </SectionCard>
-
-      {/* Export */}
-      <ExportSection />
     </Box>
   )
 }

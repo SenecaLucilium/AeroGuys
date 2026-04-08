@@ -68,6 +68,7 @@ function TypesPieChart({ data }: { data: AircraftType[] }) {
         <Tooltip
           contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
           formatter={(v: number) => [v.toLocaleString(), 'Уникальных ВС']}
+          itemStyle={{ color: '#e3f2fd' }}
         />
         <Legend wrapperStyle={{ fontSize: 10, color: '#b0bec5' }} />
       </PieChart>
@@ -183,6 +184,7 @@ function CategoryRadar({ data }: { data: AircraftType[] }) {
           formatter={(v: number, _n: string, props: { payload?: { abs?: number } }) => [
             props.payload?.abs?.toLocaleString() ?? v, 'Уникальных ВС'
           ]}
+          itemStyle={{ color: '#e3f2fd' }}
         />
       </RadarChart>
     </ResponsiveContainer>
