@@ -1,9 +1,15 @@
 import client from './client'
-import type { AirportStats, PeakHours, Destination, Throughput, DailyTrend } from './types'
+import type { AirportStats, PeakHours, Destination, Throughput, DailyTrend, AirportInfo } from './types'
 
-// GET /api/airports/stats
+// GET /api/airports/stats  (days=0 → all-time)
 export async function getAirportStats(params?: { days?: number }): Promise<AirportStats[]> {
   const { data } = await client.get<AirportStats[]>('/api/airports/stats', { params })
+  return data
+}
+
+// GET /api/airports/{icao}/info
+export async function getAirportInfo(icao: string): Promise<AirportInfo> {
+  const { data } = await client.get<AirportInfo>(`/api/airports/${icao}/info`)
   return data
 }
 

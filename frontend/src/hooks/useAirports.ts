@@ -2,10 +2,14 @@ import { useApi } from './useApi'
 import {
   getAirportStats, getAirportPeakHours,
   getAirportDestinations, getAirportThroughput, getAirportDailyTrend,
+  getAirportInfo,
 } from '@api/airports'
 
-export const useAirportStats = (days = 7) =>
+export const useAirportStats = (days = 0) =>
   useApi(() => getAirportStats({ days }), [days])
+
+export const useAirportInfo = (icao: string) =>
+  useApi(() => getAirportInfo(icao), [icao])
 
 export const useAirportPeakHours = (icao: string, days = 7) =>
   useApi(() => getAirportPeakHours(icao, { days }), [icao, days])

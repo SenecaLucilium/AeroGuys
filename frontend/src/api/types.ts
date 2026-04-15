@@ -27,6 +27,16 @@ export interface AirportBusyness {
   last_seen: string
 }
 
+export interface CityBusyness {
+  city: string
+  country: string
+  departures: number
+  arrivals: number
+  total_flights: number
+  first_seen: string
+  last_seen: string
+}
+
 // ─── Аэропорты ───────────────────────────────────────────────────────────────
 
 export interface AirportStats {
@@ -196,4 +206,25 @@ export interface DailyTrend {
   departures: number
   arrivals: number
   total: number
+}
+
+export interface AirportInfo {
+  icao: string
+  name: string | null
+  latitude: number
+  longitude: number
+  country: string | null
+  city: string | null
+}
+
+// ─── Воздушные суда (история) ─────────────────────────────────────────────────
+
+export interface FlightHistory {
+  icao24: string
+  callsign: string | null
+  first_seen: string | null
+  last_seen: string | null
+  departure: string | null
+  arrival: string | null
+  duration_minutes: number | null
 }

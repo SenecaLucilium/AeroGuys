@@ -27,3 +27,14 @@ class AirportBusynessSchema(BaseModel):
     total_flights: int
     first_seen: datetime
     last_seen: datetime
+
+
+class CityBusynessSchema(BaseModel):
+    """Загруженность города (агрегация аэропортов)."""
+    city: str
+    country: str
+    departures: int
+    arrivals: int
+    total_flights: int
+    first_seen: datetime
+    last_seen: datetime

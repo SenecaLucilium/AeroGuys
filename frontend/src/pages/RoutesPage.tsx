@@ -7,11 +7,11 @@ import {
 import RouteIcon         from '@mui/icons-material/AltRoute'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend, Cell, ScatterChart, Scatter, ZAxis, ReferenceLine,
+  Legend, Cell,
 } from 'recharts'
 import { SectionCard } from '@/components/DataBlock'
-import { usePopularRoutes, useRouteEfficiency, useDurationDistribution, useTopAirlines } from '@hooks/useRoutes'
-import type { PopularRoute, RouteEfficiency, DurationBucket, AirlineStat } from '@api/types'
+import { usePopularRoutes, useDurationDistribution, useTopAirlines } from '@hooks/useRoutes'
+import type { PopularRoute, DurationBucket, AirlineStat } from '@api/types'
 
 const C = {
   blue:   '#1e88e5',
@@ -105,66 +105,6 @@ function PopularRoutesTable({ data }: { data: PopularRoute[] }) {
   )
 }
 
-// ─── Efficiency scatter plot ──────────────────────────────────────────────────
-const SCATTER_COLORS = [C.blue, C.amber, C.green, C.red, C.teal, C.purple]
-
-interface ScatterPoint {
-  x: number
-  y: number
-  z: number
-  route: string
-}
-
-function EfficiencyScatter({ data }: { data: RouteEfficiency[] }) {
-  const points: ScatterPoint[] = data
-    .filter(d => d.route_efficiency_pct !== null && d.great_circle_km > 0)
-    .map(d => ({
-      x: d.great_circle_km,
-      y: d.route_efficiency_pct!,
-      z: Math.sqrt(d.flight_count) * 4,
-      route: `${d.departure}→${d.arrival}`,
-    }))
-
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <ScatterChart margin={{ left: 8, right: 24, top: 8, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
-        <XAxis
-          dataKey="x" type="number" name="Расстояние"
-          tick={{ fill: C.axis, fontSize: 10 }} unit=" км"
-          label={{ value: 'Расстояние (км)', position: 'insideBottom', offset: -4, fill: C.axis, fontSize: 11 }}
-          height={40}
-        />
-        <YAxis
-          dataKey="y" type="number" name="Эффективность"
-          tick={{ fill: C.axis, fontSize: 10 }} unit="%"
-          label={{ value: 'Эффект-ть %', angle: -90, position: 'insideLeft', fill: C.axis, fontSize: 11 }}
-        />
-        <ZAxis dataKey="z" range={[30, 300]} />
-        <ReferenceLine y={100} stroke={C.green} strokeDasharray="4 4" />
-        <Tooltip
-          cursor={{ strokeDasharray: '3 3' }}
-          contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
-          formatter={(v: number, name: string) => {
-            if (name === 'Расстояние') return [`${v.toFixed(0)} км`, name]
-            if (name === 'Эффективность') return [`${v.toFixed(1)}%`, name]
-            return [v, name]
-          }}
-        />
-        <Scatter
-          data={points}
-          fill={C.blue}
-          fillOpacity={0.7}
-        >
-          {points.map((_, i) => (
-            <Cell key={i} fill={SCATTER_COLORS[i % SCATTER_COLORS.length]} fillOpacity={0.65} />
-          ))}
-        </Scatter>
-      </ScatterChart>
-    </ResponsiveContainer>
-  )
-}
-
 // ─── Duration distribution histogram ─────────────────────────────────────────
 function DurationChart({ data }: { data: DurationBucket[] }) {
   const chartData = data.map(d => ({ label: d.label, count: d.count }))
@@ -219,10 +159,9 @@ function AirlinesChart({ data }: { data: AirlineStat[] }) {
 export default function RoutesPage() {
   const [period, setPeriod] = useState<Period>(7)
 
-  const popular    = usePopularRoutes(period, 20)
-  const efficiency = useRouteEfficiency(period, 50)
-  const duration   = useDurationDistribution(period)
-  const airlines   = useTopAirlines(period, 15)
+  const popular  = usePopularRoutes(period, 20)
+  const duration = useDurationDistribution(period)
+  const airlines = useTopAirlines(period, 15)
 
   return (
     <Box>
@@ -289,17 +228,6 @@ export default function RoutesPage() {
         </Grid>
       </Grid>
 
-      {/* Route efficiency scatter */}
-      <SectionCard
-        title="Эффективность маршрутов"
-        loading={efficiency.loading} error={efficiency.error} refetch={efficiency.refetch}
-        count={efficiency.data?.length}
-      >
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-          Ось X — расстояние по большому кругу (км) · Ось Y — отношение фактического расстояния к минимальному (%) · Размер точки — число рейсов
-        </Typography>
-        {efficiency.data && <EfficiencyScatter data={efficiency.data} />}
-      </SectionCard>
     </Box>
   )
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   Box, Typography, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TextField, Button, Chip, Grid, Card, CardHeader, CardContent,
+  LinearProgress, TableSortLabel, TablePagination,
 } from '@mui/material'
 import FlightIcon        from '@mui/icons-material/Flight'
 import SearchIcon        from '@mui/icons-material/Search'
@@ -14,14 +15,14 @@ import {
 } from 'recharts'
 import { SectionCard } from '@/components/DataBlock'
 import {
-  useAircraftTypes, useAltitudeProfile,
+  usePositions, useAircraftTypes, useAltitudeProfile,
   useUnidentifiedAircraft, useBusinessAviation,
   useExtremeVerticalRates, useAircraftUsage, useAircraftRoutes,
-  useSpeedDistribution, useAltitudeDistribution,
+  useSpeedDistribution, useAltitudeDistribution, useAircraftHistory,
 } from '@hooks/useAircraft'
 import type {
   AircraftPosition, AircraftType, AltitudeProfile,
-  ExtremeVerticalRate, DailyUsage, AircraftRoute,
+  ExtremeVerticalRate, DailyUsage, AircraftRoute, FlightHistory,
 } from '@api/types'
 
 const DEFAULT_ICAO24 = '3c6444'
@@ -176,9 +177,9 @@ function CategoryRadar({ data }: { data: AircraftType[] }) {
   return (
     <ResponsiveContainer width="100%" height={260}>
       <RadarChart data={radarData} cx="50%" cy="50%" outerRadius={90}>
-        <PolarGrid stroke={C.grid} />
+        <PolarGrid stroke="rgba(144,202,249,0.25)" />
         <PolarAngleAxis dataKey="category" tick={{ fill: C.label, fontSize: 10 }} />
-        <Radar name="ВС" dataKey="value" stroke={C.blue} fill={C.blue} fillOpacity={0.3} />
+        <Radar name="ВС" dataKey="value" stroke={C.blue} fill={C.blue} fillOpacity={0.55} strokeWidth={2} />
         <Tooltip
           contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
           formatter={(v: number, _n: string, props: { payload?: { abs?: number } }) => [
@@ -212,60 +213,161 @@ function UsageChart({ data }: { data: DailyUsage[] }) {
   )
 }
 
-// ─── Existing tables ──────────────────────────────────────────────────────────
-function PositionsTable({ data }: { data: AircraftPosition[] }) {
+type PosSortCol = 'icao24' | 'altitude_m' | 'speed_kmh' | 'vertical_rate_ms'
+
+function PaginatedPositionsTable({ data }: { data: AircraftPosition[] }) {
+  const [sortCol, setSortCol] = useState<PosSortCol>('altitude_m')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [page, setPage]       = useState(0)
+  const PAGE_SIZE = 20
+
+  const handleSort = (col: PosSortCol) => {
+    if (col === sortCol) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortCol(col); setSortDir('desc') }
+    setPage(0)
+  }
+
+  const sorted = [...data].sort((a, b) => {
+    let cmp: number
+    if (sortCol === 'icao24') {
+      cmp = (a.icao24 ?? '').localeCompare(b.icao24 ?? '')
+    } else {
+      const an = (a[sortCol] as number | null) ?? (sortDir === 'desc' ? -Infinity : Infinity)
+      const bn = (b[sortCol] as number | null) ?? (sortDir === 'desc' ? -Infinity : Infinity)
+      cmp = an - bn
+    }
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+  const pageData = sorted.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
+
+  const col = (id: PosSortCol, label: string, align: 'left' | 'right' = 'right') => (
+    <TableCell align={align}>
+      <TableSortLabel active={sortCol === id} direction={sortCol === id ? sortDir : 'desc'} onClick={() => handleSort(id)}>
+        {label}
+      </TableSortLabel>
+    </TableCell>
+  )
+
   return (
-    <TableContainer>
-      <Table size="small">
+    <>
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              {col('icao24', 'ICAO24', 'left')}
+              <TableCell>Позывной</TableCell>
+              <TableCell>Страна</TableCell>
+              {col('altitude_m', 'Высота, м')}
+              {col('speed_kmh', 'Скорость, км/ч')}
+              {col('vertical_rate_ms', 'В/скор., м/с')}
+              <TableCell>Статус</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {pageData.map((row, i) => (
+              <TableRow key={`${row.icao24}-${i}`}>
+                <TableCell>
+                  <Typography fontFamily="monospace" fontSize={12} color="secondary.main">{row.icao24}</Typography>
+                </TableCell>
+                <TableCell>
+                  {row.callsign
+                    ? <Typography variant="body2" fontWeight={500}>{row.callsign.trim()}</Typography>
+                    : <Typography color="text.disabled" variant="body2">—</Typography>}
+                </TableCell>
+                <TableCell sx={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {row.origin_country}
+                </TableCell>
+                <TableCell align="right">
+                  {row.altitude_m != null ? Math.round(row.altitude_m).toLocaleString() : '—'}
+                </TableCell>
+                <TableCell align="right">
+                  {row.speed_kmh != null
+                    ? <Typography color="warning.main" fontWeight={700}>{Math.round(row.speed_kmh)}</Typography>
+                    : '—'}
+                </TableCell>
+                <TableCell align="right">
+                  {row.vertical_rate_ms != null ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4 }}>
+                      {row.vertical_rate_ms > 0.5
+                        ? <ArrowUpwardIcon sx={{ fontSize: 12, color: 'success.main' }} />
+                        : row.vertical_rate_ms < -0.5
+                          ? <ArrowDownwardIcon sx={{ fontSize: 12, color: 'error.main' }} />
+                          : null}
+                      <Typography variant="body2">{row.vertical_rate_ms.toFixed(1)}</Typography>
+                    </Box>
+                  ) : '—'}
+                </TableCell>
+                <TableCell>
+                  {row.on_ground
+                    ? <Chip label="Земля" size="small" variant="outlined" sx={{ fontSize: 11 }} />
+                    : <Chip label="Воздух" size="small" color="success" variant="outlined" sx={{ fontSize: 11 }} />}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination
+        component="div"
+        count={sorted.length}
+        page={page}
+        onPageChange={(_, p) => setPage(p)}
+        rowsPerPage={PAGE_SIZE}
+        rowsPerPageOptions={[PAGE_SIZE]}
+        labelDisplayedRows={({ from, to, count }) => `${from}–${to} из ${count}`}
+      />
+    </>
+  )
+}
+
+// ─── All snapshot aircraft table ──────────────────────────────────────────────
+function AllSnapshotTable() {
+  const { data, loading, error } = usePositions({ limit: 300 })
+  if (loading) return <LinearProgress sx={{ my: 2 }} />
+  if (error) return <Typography color="error" variant="body2" sx={{ p: 1 }}>{error}</Typography>
+  if (!data?.length) return <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>Нет данных</Typography>
+  return <PaginatedPositionsTable data={data} />
+}
+
+// ─── Flight history table ─────────────────────────────────────────────────────
+function FlightHistoryTable({ data }: { data: FlightHistory[] }) {
+  return (
+    <TableContainer sx={{ maxHeight: 400 }}>
+      <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell>ICAO24</TableCell>
+            <TableCell sx={{ width: 40 }}>#</TableCell>
             <TableCell>Позывной</TableCell>
-            <TableCell>Страна</TableCell>
-            <TableCell align="right">Высота, м</TableCell>
-            <TableCell align="right">Скорость, км/ч</TableCell>
-            <TableCell align="right">В/скор., м/с</TableCell>
-            <TableCell>Статус</TableCell>
+            <TableCell>Вылет</TableCell>
+            <TableCell>Прилёт</TableCell>
+            <TableCell>Дата/время вылета</TableCell>
+            <TableCell align="right">Длит., мин</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {data.map((row, i) => (
-            <TableRow key={`${row.icao24}-${i}`}>
+            <TableRow key={i}>
+              <TableCell sx={{ color: 'text.secondary' }}>{i + 1}</TableCell>
               <TableCell>
-                <Typography fontFamily="monospace" fontSize={12} color="secondary.main">{row.icao24}</Typography>
-              </TableCell>
-              <TableCell>
-                {row.callsign
-                  ? <Typography variant="body2" fontWeight={500}>{row.callsign.trim()}</Typography>
-                  : <Typography color="text.disabled" variant="body2">—</Typography>}
-              </TableCell>
-              <TableCell sx={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {row.origin_country}
-              </TableCell>
-              <TableCell align="right">
-                {row.altitude_m != null ? Math.round(row.altitude_m).toLocaleString() : '—'}
-              </TableCell>
-              <TableCell align="right">
-                {row.speed_kmh != null
-                  ? <Typography color="warning.main" fontWeight={700}>{Math.round(row.speed_kmh)}</Typography>
-                  : '—'}
-              </TableCell>
-              <TableCell align="right">
-                {row.vertical_rate_ms != null ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.4 }}>
-                    {row.vertical_rate_ms > 0.5
-                      ? <ArrowUpwardIcon sx={{ fontSize: 12, color: 'success.main' }} />
-                      : row.vertical_rate_ms < -0.5
-                        ? <ArrowDownwardIcon sx={{ fontSize: 12, color: 'error.main' }} />
-                        : null}
-                    <Typography variant="body2">{row.vertical_rate_ms.toFixed(1)}</Typography>
-                  </Box>
-                ) : '—'}
+                <Typography fontFamily="monospace" variant="body2">{row.callsign?.trim() ?? '—'}</Typography>
               </TableCell>
               <TableCell>
-                {row.on_ground
-                  ? <Chip label="Земля" size="small" variant="outlined" sx={{ fontSize: 11 }} />
-                  : <Chip label="Воздух" size="small" color="success" variant="outlined" sx={{ fontSize: 11 }} />}
+                <Typography fontFamily="monospace" color="primary.main" fontWeight={700} variant="body2">
+                  {row.departure ?? '—'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography fontFamily="monospace" color="warning.main" fontWeight={700} variant="body2">
+                  {row.arrival ?? '—'}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" fontSize={11}>
+                  {row.first_seen ? new Date(row.first_seen).toLocaleString('ru-RU') : '—'}
+                </Typography>
+              </TableCell>
+              <TableCell align="right">
+                {row.duration_minutes != null ? Math.round(row.duration_minutes) : '—'}
               </TableCell>
             </TableRow>
           ))}
@@ -380,6 +482,7 @@ export default function AircraftPage() {
   const business = useBusinessAviation(50)
   const usage    = useAircraftUsage(icao24, 30)
   const routes   = useAircraftRoutes(icao24, 30, 10)
+  const history  = useAircraftHistory(icao24, 100)
 
   return (
     <Box>
@@ -449,7 +552,7 @@ export default function AircraftPage() {
             loading={unident.loading} error={unident.error} refetch={unident.refetch}
             count={unident.data?.length}
           >
-            {unident.data && <PositionsTable data={unident.data} />}
+            {unident.data && <PaginatedPositionsTable data={unident.data} />}
           </SectionCard>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -458,10 +561,15 @@ export default function AircraftPage() {
             loading={business.loading} error={business.error} refetch={business.refetch}
             count={business.data?.length}
           >
-            {business.data && <PositionsTable data={business.data} />}
+            {business.data && <PaginatedPositionsTable data={business.data} />}
           </SectionCard>
         </Grid>
       </Grid>
+
+      {/* All snapshot aircraft */}
+      <SectionCard title="Все ВС в снапшоте (последний)" loading={false} error={null} refetch={() => {}}>
+        <AllSnapshotTable />
+      </SectionCard>
 
       {/* Individual aircraft section */}
       <Card sx={{ mb: 3 }}>
@@ -511,6 +619,16 @@ export default function AircraftPage() {
         {routes.data && routes.data.length > 0
           ? <AircraftRoutesTable data={routes.data} />
           : <Typography variant="body2" color="text.secondary">Маршруты не найдены</Typography>
+        }
+
+        {/* Flight history */}
+        <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3, mb: 0.5 }}>
+          История рейсов (последние 100)
+        </Typography>
+        {history.loading && <LinearProgress sx={{ my: 1 }} />}
+        {!history.loading && history.data && history.data.length > 0
+          ? <FlightHistoryTable data={history.data} />
+          : !history.loading && <Typography variant="body2" color="text.secondary">Данные о рейсах не найдены</Typography>
         }
         </CardContent>
       </Card>

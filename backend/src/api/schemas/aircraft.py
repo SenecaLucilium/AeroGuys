@@ -78,6 +78,17 @@ class CountryCountSchema(BaseModel):
     aircraft_count: int
 
 
+class FlightHistorySchema(BaseModel):
+    """Один исторический рейс конкретного борта."""
+    icao24: str
+    callsign: Optional[str] = None
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+    departure: Optional[str] = None
+    arrival: Optional[str] = None
+    duration_minutes: Optional[float] = None
+
+
 class SnapshotStatsSchema(BaseModel):
     """Агрегированная статистика последнего снапшота."""
     total: int

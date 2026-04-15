@@ -10,7 +10,7 @@ from typing import List
 from fastapi import APIRouter, Depends, Query
 
 from api.dependencies import get_queries
-from api.schemas.realtime import AircraftPositionSchema, AirportBusynessSchema
+from api.schemas.realtime import AircraftPositionSchema, AirportBusynessSchema, CityBusynessSchema
 from Analysis.queries import DatabaseQueries, AircraftPosition, AirportStats
 
 router = APIRouter()
@@ -55,6 +55,21 @@ def airport_busyness(
 ):
     stats = queries.get_airport_busyness(hours_back=hours_back, limit=limit)
     return [_airport_stats_to_schema(s) for s in stats]
+
+
+@router.get(
+    "/city-busyness",
+    response_model=List[CityBusynessSchema],
+    summary="Рейтинг загруженности городов",
+    description="Города, отсортированные по суммарному числу рейсов (аэропорты одного города объединяются).",
+)
+def city_busyness(
+    hours_back: int = Query(24, ge=1, le=168),
+    limit: int = Query(20, ge=1, le=100),
+    queries: DatabaseQueries = Depends(get_queries),
+):
+    rows = queries.get_city_busyness(hours_back=hours_back, limit=limit)
+    return [CityBusynessSchema(**r) for r in rows]
 
 
 @router.get(
