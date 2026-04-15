@@ -48,3 +48,13 @@ class DailyTrendSchema(BaseModel):
     departures: int
     arrivals: int
     total: int
+
+
+class AirportInfoSchema(BaseModel):
+    """Гео-информация об аэропорте из справочника."""
+    icao: str
+    name: Optional[str] = None
+    latitude: float
+    longitude: float
+    country: Optional[str] = None
+    city: Optional[str] = None

@@ -1,8 +1,11 @@
 import { useApi } from './useApi'
-import { getAirportBusyness, getFastestAircraft, getHighestAircraft } from '@api/realtime'
+import { getAirportBusyness, getFastestAircraft, getHighestAircraft, getCityBusyness } from '@api/realtime'
 
 export const useAirportBusyness = (hours_back = 24, limit = 20) =>
   useApi(() => getAirportBusyness({ hours_back, limit }), [hours_back, limit])
+
+export const useCityBusyness = (hours_back = 24, limit = 20) =>
+  useApi(() => getCityBusyness({ hours_back, limit }), [hours_back, limit])
 
 export const useFastestAircraft = (limit = 20) =>
   useApi(() => getFastestAircraft({ limit }), [limit])

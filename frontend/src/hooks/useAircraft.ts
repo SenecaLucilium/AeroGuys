@@ -4,7 +4,7 @@ import {
   getUnidentifiedAircraft, getBusinessAviation,
   getExtremeVerticalRates, getAircraftUsage, getAircraftRoutes,
   getSpeedDistribution, getAltitudeDistribution, getCountryDistribution,
-  getSnapshotStats, getFlightPhases,
+  getSnapshotStats, getFlightPhases, getAircraftHistory,
 } from '@api/aircraft'
 import type { BBoxParams } from '@api/types'
 
@@ -46,3 +46,6 @@ export const useSnapshotStats = () =>
 
 export const useFlightPhases = () =>
   useApi(() => getFlightPhases(), [])
+
+export const useAircraftHistory = (icao24: string, limit = 100) =>
+  useApi(() => getAircraftHistory(icao24, { limit }), [icao24, limit])

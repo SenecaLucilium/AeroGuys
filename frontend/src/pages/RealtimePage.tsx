@@ -11,18 +11,19 @@ import PublicIcon        from '@mui/icons-material/Public'
 import SpeedIcon         from '@mui/icons-material/Speed'
 import HeightIcon        from '@mui/icons-material/Height'
 import FlightIcon        from '@mui/icons-material/Flight'
+import LocationCityIcon  from '@mui/icons-material/LocationCity'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import { SectionCard } from '@/components/DataBlock'
 import {
-  useAirportBusyness, useFastestAircraft, useHighestAircraft,
+  useFastestAircraft, useHighestAircraft, useCityBusyness,
 } from '@hooks/useRealtime'
 import {
   useSnapshotStats, useFlightPhases, useSpeedDistribution, useCountryDistribution,
 } from '@hooks/useAircraft'
-import type { AircraftPosition, AirportBusyness } from '@api/types'
+import type { AircraftPosition, CityBusyness } from '@api/types'
 
 // ─── Chart palette ───────────────────────────────────────────────────────────
 const C = {
@@ -67,20 +68,20 @@ function StatCard({
   )
 }
 
-// ─── Airport busyness chart ───────────────────────────────────────────────────
-function BusynessChart({ data }: { data: AirportBusyness[] }) {
+// ─── City busyness chart ──────────────────────────────────────────────────────
+function CityBusynessChart({ data }: { data: CityBusyness[] }) {
   const sorted = [...data].sort((a, b) => b.total_flights - a.total_flights).slice(0, 12)
   const chartData = sorted.map(d => ({
-    airport: d.airport,
+    city: d.city || '—',
     dep: d.departures,
     arr: d.arrivals,
   }))
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={C.grid} horizontal={false} />
         <XAxis type="number" tick={{ fill: C.axis, fontSize: 10 }} />
-        <YAxis dataKey="airport" type="category" tick={{ fill: C.label, fontSize: 11, fontFamily: 'monospace' }} width={46} />
+        <YAxis dataKey="city" type="category" tick={{ fill: C.label, fontSize: 11 }} width={110} />
         <Tooltip
           contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
           labelStyle={{ color: C.label, fontWeight: 700 }}
@@ -130,6 +131,8 @@ function CountryChart() {
           <YAxis dataKey="country" type="category" tick={{ fill: C.label, fontSize: 10 }} width={100} />
           <Tooltip
             contentStyle={{ background: '#0d1627', border: `1px solid ${C.blue}44`, borderRadius: 8, fontSize: 12 }}
+            labelStyle={{ color: C.label, fontWeight: 700 }}
+            itemStyle={{ color: '#e3f2fd' }}
             formatter={(v: number) => [v, 'Самолётов']}
           />
           <Bar dataKey="aircraft_count" name="Самолётов" radius={[0, 3, 3, 0]} maxBarSize={16}>
@@ -250,7 +253,7 @@ function AircraftTable({ data }: { data: AircraftPosition[] }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function RealtimePage() {
   const stats    = useSnapshotStats()
-  const busyness = useAirportBusyness(24, 20)
+  const cityBusy = useCityBusyness(24, 20)
   const fastest  = useFastestAircraft(20)
   const highest  = useHighestAircraft(20)
 
@@ -331,24 +334,25 @@ export default function RealtimePage() {
       {/* Country distribution */}
       <CountryChart />
 
-      {/* Airport busyness chart + table */}
+      {/* City busyness chart + table */}
       <SectionCard
-        title="Загруженность аэропортов (24 ч)"
-        loading={busyness.loading}
-        error={busyness.error}
-        refetch={busyness.refetch}
-        count={busyness.data?.length}
+        title="Загруженность аэропортов (24 ч) — по городам"
+        loading={cityBusy.loading}
+        error={cityBusy.error}
+        refetch={cityBusy.refetch}
+        count={cityBusy.data?.length}
       >
-        {busyness.data && (
+        {cityBusy.data && (
           <>
-            <BusynessChart data={busyness.data} />
+            <CityBusynessChart data={cityBusy.data} />
             <Box sx={{ mt: 2 }}>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
                       <TableCell sx={{ width: 36 }}>#</TableCell>
-                      <TableCell>Аэропорт</TableCell>
+                      <TableCell>Город</TableCell>
+                      <TableCell>Страна</TableCell>
                       <TableCell align="right">
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
                           <FlightTakeoffIcon sx={{ fontSize: 14 }} />Вылеты
@@ -363,14 +367,16 @@ export default function RealtimePage() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {[...busyness.data].sort((a, b) => b.total_flights - a.total_flights).map((row, i) => (
-                      <TableRow key={row.airport}>
+                    {[...cityBusy.data].sort((a, b) => b.total_flights - a.total_flights).map((row, i) => (
+                      <TableRow key={row.city}>
                         <TableCell sx={{ color: 'text.secondary' }}>{i + 1}</TableCell>
                         <TableCell>
-                          <Typography fontFamily="monospace" color="primary.main" fontWeight={700} variant="body2">
-                            {row.airport}
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <LocationCityIcon sx={{ fontSize: 14, color: C.teal }} />
+                            <Typography fontWeight={700} variant="body2">{row.city}</Typography>
+                          </Box>
                         </TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{row.country || '—'}</TableCell>
                         <TableCell align="right">{row.departures.toLocaleString()}</TableCell>
                         <TableCell align="right">{row.arrivals.toLocaleString()}</TableCell>
                         <TableCell align="right">

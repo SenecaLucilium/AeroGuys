@@ -1,5 +1,5 @@
 import client from './client'
-import type { AircraftPosition, AirportBusyness } from './types'
+import type { AircraftPosition, AirportBusyness, CityBusyness } from './types'
 
 // GET /api/realtime/airport-busyness
 export async function getAirportBusyness(params?: {
@@ -7,6 +7,15 @@ export async function getAirportBusyness(params?: {
   limit?: number
 }): Promise<AirportBusyness[]> {
   const { data } = await client.get<AirportBusyness[]>('/api/realtime/airport-busyness', { params })
+  return data
+}
+
+// GET /api/realtime/city-busyness
+export async function getCityBusyness(params?: {
+  hours_back?: number
+  limit?: number
+}): Promise<CityBusyness[]> {
+  const { data } = await client.get<CityBusyness[]>('/api/realtime/city-busyness', { params })
   return data
 }
 

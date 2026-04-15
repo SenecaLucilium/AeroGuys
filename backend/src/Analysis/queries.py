@@ -272,13 +272,20 @@ class DatabaseQueries:
     
     # ==================  СТАТИСТИКА  ==================
     
-    def get_airport_stats(self, days: int = 7) -> List[AirportStats]:
+    def get_airport_stats(self, days: Optional[int] = 7) -> List[AirportStats]:
         """
-        Получить статистику по аэропортам за последние N дней (минимум 30 дней для демо-данных)
+        Получить статистику по аэропортам за последние N дней.
+        Если days=None или days=0 — берём весь доступный снапшот (all-time).
         """
-        cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
-        
-        query = """
+        if days:
+            cutoff = int((datetime.now() - timedelta(days=max(days, 30))).timestamp())
+            where_time = "AND first_seen >= %s"
+            params: list = [cutoff]
+        else:
+            where_time = ""
+            params = []
+
+        query = f"""
             SELECT 
                 COALESCE(est_departure_airport, est_arrival_airport) as airport,
                 COUNT(CASE WHEN est_departure_airport IS NOT NULL THEN 1 END) as departures,
@@ -288,13 +295,13 @@ class DatabaseQueries:
                 MAX(last_seen) as last_flight
             FROM flights
             WHERE (est_departure_airport IS NOT NULL OR est_arrival_airport IS NOT NULL)
-                AND first_seen >= %s
+                {where_time}
             GROUP BY airport
             ORDER BY total DESC
         """
-        
+
         with self.db.get_cursor() as cursor:
-            cursor.execute(query, [cutoff])
+            cursor.execute(query, params)
             stats = []
             for row in cursor.fetchall():
                 stats.append(AirportStats(
@@ -306,6 +313,116 @@ class DatabaseQueries:
                     last_seen=datetime.fromtimestamp(row[5])
                 ))
             return stats
+
+    def get_airport_info(self, icao: str) -> Optional[Dict]:
+        """
+        Получить гео-информацию об аэропорте из справочника: координаты, страна, город, название.
+        """
+        query = """
+            SELECT icao, name, latitude, longitude, country, city
+            FROM airports
+            WHERE icao = %s
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query, [icao.upper()])
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return {
+                'icao': row[0],
+                'name': row[1],
+                'latitude': row[2],
+                'longitude': row[3],
+                'country': row[4],
+                'city': row[5],
+            }
+
+    def get_city_busyness(self, hours_back: int = 24, limit: int = 20) -> List[Dict]:
+        """
+        Рейтинг загруженности городов (агрегация аэропортов одного города) за последние N часов.
+        Группирует по полю city из справочника airports; для аэропортов без записи в справочнике
+        использует ICAO-код как имя города.
+        """
+        cutoff = int((datetime.now() - timedelta(hours=max(hours_back, 24 * 7))).timestamp())
+
+        query = """
+            WITH airport_stats AS (
+                SELECT
+                    COALESCE(est_departure_airport, est_arrival_airport) AS airport,
+                    COUNT(CASE WHEN est_departure_airport IS NOT NULL THEN 1 END) AS departures,
+                    COUNT(CASE WHEN est_arrival_airport IS NOT NULL THEN 1 END)   AS arrivals,
+                    COUNT(*) AS total,
+                    MIN(first_seen) AS first_flight,
+                    MAX(last_seen)  AS last_flight
+                FROM flights
+                WHERE (est_departure_airport IS NOT NULL OR est_arrival_airport IS NOT NULL)
+                    AND first_seen >= %s
+                GROUP BY airport
+            )
+            SELECT
+                COALESCE(a.city, s.airport)    AS city,
+                COALESCE(a.country, '')         AS country,
+                SUM(s.departures)              AS departures,
+                SUM(s.arrivals)                AS arrivals,
+                SUM(s.total)                   AS total_flights,
+                MIN(s.first_flight)            AS first_flight,
+                MAX(s.last_flight)             AS last_flight
+            FROM airport_stats s
+            LEFT JOIN airports a ON a.icao = s.airport
+            GROUP BY COALESCE(a.city, s.airport), COALESCE(a.country, '')
+            ORDER BY total_flights DESC
+            LIMIT %s
+        """
+
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query, [cutoff, limit])
+            return [
+                {
+                    'city': row[0],
+                    'country': row[1],
+                    'departures': row[2],
+                    'arrivals': row[3],
+                    'total_flights': row[4],
+                    'first_seen': datetime.fromtimestamp(row[5]),
+                    'last_seen': datetime.fromtimestamp(row[6]),
+                }
+                for row in cursor.fetchall()
+            ]
+
+    def get_aircraft_history(self, icao24: str, limit: int = 100) -> List[Dict]:
+        """
+        История полётов конкретного самолёта: все доступные рейсы в порядке убывания даты.
+        """
+        query = """
+            SELECT
+                icao24,
+                callsign,
+                TO_TIMESTAMP(first_seen)                            AS first_seen_dt,
+                TO_TIMESTAMP(last_seen)                             AS last_seen_dt,
+                est_departure_airport,
+                est_arrival_airport,
+                ROUND((last_seen - first_seen)::numeric / 60, 1)    AS duration_minutes
+            FROM flights
+            WHERE icao24 = %s
+              AND est_departure_airport IS NOT NULL
+              AND est_arrival_airport   IS NOT NULL
+            ORDER BY first_seen DESC
+            LIMIT %s
+        """
+        with self.db.get_cursor() as cursor:
+            cursor.execute(query, [icao24.lower(), limit])
+            return [
+                {
+                    'icao24': row[0],
+                    'callsign': row[1],
+                    'first_seen': row[2].isoformat() if row[2] else None,
+                    'last_seen': row[3].isoformat() if row[3] else None,
+                    'departure': row[4],
+                    'arrival': row[5],
+                    'duration_minutes': float(row[6]) if row[6] else None,
+                }
+                for row in cursor.fetchall()
+            ]
     
     def get_traffic_hourly(self, airport: Optional[str] = None, 
                           days: int = 7) -> Dict[int, int]:

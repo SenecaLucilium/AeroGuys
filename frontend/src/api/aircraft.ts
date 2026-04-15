@@ -3,6 +3,7 @@ import type {
   AircraftPosition, DailyUsage, AircraftRoute,
   AircraftType, AltitudeProfile, ExtremeVerticalRate, BBoxParams,
   SpeedBucket, AltitudeBucket, CountryCount, SnapshotStats, FlightPhase,
+  FlightHistory,
 } from './types'
 
 // GET /api/aircraft/positions
@@ -96,5 +97,8 @@ export async function getAircraftRoutes(icao24: string, params?: { days?: number
   return data
 }
 
-
-// GET /api/aircraft/positions
+// GET /api/aircraft/{icao24}/history
+export async function getAircraftHistory(icao24: string, params?: { limit?: number }): Promise<FlightHistory[]> {
+  const { data } = await client.get<FlightHistory[]>(`/api/aircraft/${icao24}/history`, { params })
+  return data
+}
