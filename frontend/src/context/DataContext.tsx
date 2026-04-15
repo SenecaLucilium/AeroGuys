@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 
 export interface InitInfo {
   mode: 'realtime' | 'csv'
@@ -30,6 +30,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return null
     }
   })
+
+  // При каждом старте приложения проверяем, есть ли данные в БД.
+  // Если БД пустая (например, после docker compose down -v) — сбрасываем init.
+  useEffect(() => {
+    if (!initInfo) return
+    fetch('/api/init/status')
+      .then((r) => r.json())
+      .then(({ has_data }: { has_data: boolean }) => {
+        if (!has_data) {
+          setInitInfo(null)
+          localStorage.removeItem(STORAGE_KEY)
+        }
+      })
+      .catch(() => {/* сервер недоступен — оставляем как есть */})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function setInitialized(info: InitInfo) {
     setInitInfo(info)

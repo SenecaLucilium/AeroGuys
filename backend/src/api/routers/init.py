@@ -27,6 +27,30 @@ class InitResult(BaseModel):
     message: str
 
 
+class DataStatus(BaseModel):
+    has_data: bool
+    flights: int
+    states: int
+
+
+@router.get(
+    "/status",
+    summary="Проверить наличие данных в БД",
+    response_model=DataStatus,
+)
+def init_status(queries: DatabaseQueries = Depends(get_queries)) -> DataStatus:
+    """Возвращает, есть ли в базе загруженные данные."""
+    try:
+        with queries.db.get_cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) FROM flights")
+            flights: int = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM state_vectors")
+            states: int = cursor.fetchone()[0]
+        return DataStatus(has_data=(flights > 0 or states > 0), flights=flights, states=states)
+    except Exception:
+        return DataStatus(has_data=False, flights=0, states=0)
+
+
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
 def _parse_ts(s: str) -> int:
