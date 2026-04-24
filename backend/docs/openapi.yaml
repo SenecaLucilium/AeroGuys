@@ -1,0 +1,2042 @@
+openapi: 3.1.0
+info:
+  title: AeroGuys API
+  description: REST API для анализа авиационных данных из OpenSky Network.
+  version: 1.0.0
+paths:
+  /api/init/status:
+    get:
+      tags:
+      - Инициализация
+      summary: Проверить наличие данных в БД
+      description: Возвращает, есть ли в базе загруженные данные.
+      operationId: init_status_api_init_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataStatus'
+  /api/init/realtime:
+    post:
+      tags:
+      - Инициализация
+      summary: Загрузить real-time данные из OpenSky API
+      description: 'Выполняет один цикл сбора данных из OpenSky Network:
+
+        state vectors (текущие позиции) + рейсы за последние 2 часа.'
+      operationId: init_realtime_api_init_realtime_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitResult'
+  /api/init/upload-csv:
+    post:
+      tags:
+      - Инициализация
+      summary: Загрузить рейсы из CSV-файла
+      description: "Принимает CSV с заголовком (регистр не важен):\n  ICAO24, Callsign,\
+        \ Departure Time, Arrival Time, From, To, Duration (min)\n\nДубликаты пропускаются\
+        \ автоматически (ON CONFLICT DO NOTHING)."
+      operationId: init_upload_csv_api_init_upload_csv_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_init_upload_csv_api_init_upload_csv_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/realtime/airport-busyness:
+    get:
+      tags:
+      - Реальное время
+      summary: Рейтинг загруженности аэропортов
+      description: Аэропорты, отсортированные по суммарному числу рейсов за последние
+        N часов.
+      operationId: airport_busyness_api_realtime_airport_busyness_get
+      parameters:
+      - name: hours_back
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 168
+          minimum: 1
+          description: Глубина выборки в часах (макс 7 дней)
+          default: 24
+          title: Hours Back
+        description: Глубина выборки в часах (макс 7 дней)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AirportBusynessSchema'
+                title: Response Airport Busyness Api Realtime Airport Busyness Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/realtime/city-busyness:
+    get:
+      tags:
+      - Реальное время
+      summary: Рейтинг загруженности городов
+      description: Города, отсортированные по суммарному числу рейсов (аэропорты одного
+        города объединяются).
+      operationId: city_busyness_api_realtime_city_busyness_get
+      parameters:
+      - name: hours_back
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 168
+          minimum: 1
+          default: 24
+          title: Hours Back
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CityBusynessSchema'
+                title: Response City Busyness Api Realtime City Busyness Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/realtime/fastest:
+    get:
+      tags:
+      - Реальное время
+      summary: Рейтинг самых быстрых самолётов
+      description: Топ воздушных судов по скорости из последнего снапшота (только
+        в воздухе).
+      operationId: fastest_aircraft_api_realtime_fastest_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 20
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AircraftPositionSchema'
+                title: Response Fastest Aircraft Api Realtime Fastest Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/realtime/highest:
+    get:
+      tags:
+      - Реальное время
+      summary: Рейтинг самых высоких полётов
+      description: Топ воздушных судов по барометрической высоте из последнего снапшота.
+      operationId: highest_aircraft_api_realtime_highest_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 20
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AircraftPositionSchema'
+                title: Response Highest Aircraft Api Realtime Highest Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/airports/stats:
+    get:
+      tags:
+      - Аэропорты
+      summary: Рейтинг аэропортов по загруженности
+      description: Статистика всех аэропортов. days=0 — весь доступный снапшот (all-time).
+      operationId: airport_stats_api_airports_stats_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 3650
+          minimum: 0
+          default: 0
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AirportStatsSchema'
+                title: Response Airport Stats Api Airports Stats Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/airports/{icao}/info:
+    get:
+      tags:
+      - Аэропорты
+      summary: Гео-информация об аэропорте
+      description: Координаты, страна и город из справочника аэропортов.
+      operationId: airport_info_api_airports__icao__info_get
+      parameters:
+      - name: icao
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 3
+          maxLength: 4
+          description: ICAO-код аэропорта, например EDDF
+          title: Icao
+        description: ICAO-код аэропорта, например EDDF
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AirportInfoSchema'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/airports/{icao}/peak-hours:
+    get:
+      tags:
+      - Аэропорты
+      summary: Пиковые часы аэропорта
+      description: Почасовое распределение вылетов и прилётов для выбранного аэропорта.
+      operationId: airport_peak_hours_api_airports__icao__peak_hours_get
+      parameters:
+      - name: icao
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 4
+          maxLength: 4
+          description: ICAO-код аэропорта, например EDDF
+          title: Icao
+        description: ICAO-код аэропорта, например EDDF
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 7
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeakHoursSchema'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/airports/{icao}/destinations:
+    get:
+      tags:
+      - Аэропорты
+      summary: География направлений из аэропорта
+      description: Куда и сколько раз летели самолёты из данного аэропорта за период.
+      operationId: airport_destinations_api_airports__icao__destinations_get
+      parameters:
+      - name: icao
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 4
+          maxLength: 4
+          description: ICAO-код аэропорта отправления
+          title: Icao
+        description: ICAO-код аэропорта отправления
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 7
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DestinationSchema'
+                title: Response Airport Destinations Api Airports  Icao  Destinations
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/airports/{icao}/daily-trend:
+    get:
+      tags:
+      - Аэропорты
+      summary: Ежедневная динамика рейсов через аэропорт
+      description: Количество вылетов, прилётов и суммарное число рейсов по дням за
+        период.
+      operationId: airport_daily_trend_api_airports__icao__daily_trend_get
+      parameters:
+      - name: icao
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 4
+          maxLength: 4
+          description: ICAO-код аэропорта, например EDDF
+          title: Icao
+        description: ICAO-код аэропорта, например EDDF
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 14
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyTrendSchema'
+                title: Response Airport Daily Trend Api Airports  Icao  Daily Trend
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/airports/throughput:
+    get:
+      tags:
+      - Аэропорты
+      summary: Пропускная способность аэропортов
+      description: Среднее число рейсов в час для указанных аэропортов. Передайте
+        несколько значений параметра `airports` для сравнения.
+      operationId: airport_throughput_api_airports_throughput_get
+      parameters:
+      - name: airports
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'ICAO-коды аэропортов, например: airports=EDDF&airports=LFPG'
+          title: Airports
+        description: 'ICAO-коды аэропортов, например: airports=EDDF&airports=LFPG'
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 7
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ThroughputSchema'
+                title: Response Airport Throughput Api Airports Throughput Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/positions:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Текущие позиции самолётов
+      description: Все борты из последнего снапшота с опциональной фильтрацией по
+        bbox и высоте.
+      operationId: current_positions_api_aircraft_positions_get
+      parameters:
+      - name: min_lat
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 90
+            minimum: -90
+          - type: 'null'
+          title: Min Lat
+      - name: max_lat
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 90
+            minimum: -90
+          - type: 'null'
+          title: Max Lat
+      - name: min_lon
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 180
+            minimum: -180
+          - type: 'null'
+          title: Min Lon
+      - name: max_lon
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 180
+            minimum: -180
+          - type: 'null'
+          title: Max Lon
+      - name: min_altitude
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            minimum: 0
+          - type: 'null'
+          description: Минимальная высота, м
+          title: Min Altitude
+        description: Минимальная высота, м
+      - name: on_ground
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: true — только на земле, false — только в воздухе
+          title: On Ground
+        description: true — только на земле, false — только в воздухе
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          minimum: 1
+          default: 1000
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AircraftPositionSchema'
+                title: Response Current Positions Api Aircraft Positions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/by-callsign/{callsign}:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Найти борт по позывному
+      operationId: by_callsign_api_aircraft_by_callsign__callsign__get
+      parameters:
+      - name: callsign
+        in: path
+        required: true
+        schema:
+          type: string
+          description: Позывной, например AFL123
+          title: Callsign
+        description: Позывной, например AFL123
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AircraftPositionSchema'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/types:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Популярные типы ВС в регионе
+      description: Распределение воздушных судов по категориям ADS-B за последние
+        N дней. Bbox опционален.
+      operationId: aircraft_types_api_aircraft_types_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 30
+          minimum: 1
+          default: 7
+          title: Days
+      - name: min_lat
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 90
+            minimum: -90
+          - type: 'null'
+          title: Min Lat
+      - name: max_lat
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 90
+            minimum: -90
+          - type: 'null'
+          title: Max Lat
+      - name: min_lon
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 180
+            minimum: -180
+          - type: 'null'
+          title: Min Lon
+      - name: max_lon
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 180
+            minimum: -180
+          - type: 'null'
+          title: Max Lon
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AircraftTypeSchema'
+                title: Response Aircraft Types Api Aircraft Types Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/altitude-profile:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Высотный профиль типов ВС
+      description: Средняя и медианная крейсерская высота, средняя скорость по каждой
+        категории ADS-B.
+      operationId: altitude_profile_api_aircraft_altitude_profile_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AltitudeProfileSchema'
+                type: array
+                title: Response Altitude Profile Api Aircraft Altitude Profile Get
+  /api/aircraft/unidentified:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Военные / неопознанные самолёты
+      description: Борты без позывного или со squawk кодами аварийных/военных ситуаций
+        (7500/7600/7700/7777).
+      operationId: unidentified_aircraft_api_aircraft_unidentified_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AircraftPositionSchema'
+                title: Response Unidentified Aircraft Api Aircraft Unidentified Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/business:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Бизнес-авиация
+      description: Борты категорий Light/Small/High-performance с нестандартными позывными
+        (не авиакомпании).
+      operationId: business_aviation_api_aircraft_business_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AircraftPositionSchema'
+                title: Response Business Aviation Api Aircraft Business Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/extreme-vertical-rates:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Резкие наборы и снижения высоты
+      description: Борты с вертикальной скоростью выше порога (по умолчанию ±10 м/с
+        ≈ 2000 ft/min).
+      operationId: extreme_vertical_rates_api_aircraft_extreme_vertical_rates_get
+      parameters:
+      - name: threshold_ms
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 100.0
+          minimum: 1.0
+          description: Порог вертикальной скорости, м/с
+          default: 10.0
+          title: Threshold Ms
+        description: Порог вертикальной скорости, м/с
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExtremeVerticalRateSchema'
+                title: Response Extreme Vertical Rates Api Aircraft Extreme Vertical
+                  Rates Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/speed-distribution:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Гистограмма скоростей
+      description: Распределение воздушных судов по скоростям из последнего снапшота
+        (10 бакетов, 0–1200 км/ч).
+      operationId: speed_distribution_api_aircraft_speed_distribution_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SpeedBucketSchema'
+                type: array
+                title: Response Speed Distribution Api Aircraft Speed Distribution
+                  Get
+  /api/aircraft/altitude-distribution:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Гистограмма высот
+      description: Распределение воздушных судов по высоте из последнего снапшота
+        (10 бакетов, 0–15 000 м).
+      operationId: altitude_distribution_api_aircraft_altitude_distribution_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AltitudeBucketSchema'
+                type: array
+                title: Response Altitude Distribution Api Aircraft Altitude Distribution
+                  Get
+  /api/aircraft/country-distribution:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Страны воздушных судов
+      description: Топ стран по числу уникальных ВС в последнем снапшоте.
+      operationId: country_distribution_api_aircraft_country_distribution_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 15
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CountryCountSchema'
+                title: Response Country Distribution Api Aircraft Country Distribution
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/snapshot-stats:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Статистика снапшота
+      description: 'Агрегированные показатели последнего снапшота: всего ВС, в воздухе,
+        на земле, макс. скорость/высота, кол-во стран.'
+      operationId: snapshot_stats_api_aircraft_snapshot_stats_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotStatsSchema'
+  /api/aircraft/flight-phases:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Фазы полёта
+      description: Распределение воздушных судов по фазам полёта (набор высоты / снижение
+        / горизонтальный полёт).
+      operationId: flight_phases_api_aircraft_flight_phases_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/FlightPhaseSchema'
+                type: array
+                title: Response Flight Phases Api Aircraft Flight Phases Get
+  /api/aircraft/{icao24}/usage:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Использование конкретного самолёта
+      description: График налёта часов и числа рейсов по дням для выбранного борта
+        (ICAO24).
+      operationId: aircraft_usage_api_aircraft__icao24__usage_get
+      parameters:
+      - name: icao24
+        in: path
+        required: true
+        schema:
+          type: string
+          description: ICAO24 код борта, например 3c6444
+          title: Icao24
+        description: ICAO24 код борта, например 3c6444
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyUsageSchema'
+                title: Response Aircraft Usage Api Aircraft  Icao24  Usage Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/{icao24}/routes:
+    get:
+      tags:
+      - Воздушные суда
+      summary: Типичные маршруты конкретного самолёта
+      description: Топ маршрутов (пар аэропортов) по числу выполненных рейсов.
+      operationId: aircraft_routes_api_aircraft__icao24__routes_get
+      parameters:
+      - name: icao24
+        in: path
+        required: true
+        schema:
+          type: string
+          description: ICAO24 код борта
+          title: Icao24
+        description: ICAO24 код борта
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+          title: Days
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 10
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AircraftRouteSchema'
+                title: Response Aircraft Routes Api Aircraft  Icao24  Routes Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/aircraft/{icao24}/history:
+    get:
+      tags:
+      - Воздушные суда
+      summary: История полётов конкретного самолёта
+      description: Последние рейсы борта из локальной БД (только рейсы с известными
+        аэропортами).
+      operationId: aircraft_history_api_aircraft__icao24__history_get
+      parameters:
+      - name: icao24
+        in: path
+        required: true
+        schema:
+          type: string
+          description: ICAO24 код борта, например 3c6444
+          title: Icao24
+        description: ICAO24 код борта, например 3c6444
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FlightHistorySchema'
+                title: Response Aircraft History Api Aircraft  Icao24  History Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/routes/popular:
+    get:
+      tags:
+      - Маршруты
+      summary: Популярные маршруты
+      description: Самые частотные пары аэропортов (маршруты) за выбранный период.
+      operationId: popular_routes_api_routes_popular_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 7
+          title: Days
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PopularRouteSchema'
+                title: Response Popular Routes Api Routes Popular Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/routes/efficiency:
+    get:
+      tags:
+      - Маршруты
+      summary: Эффективность маршрутов
+      description: Сравнение фактической длительности рейса с теоретической ортодромией.
+        Требует заполненной таблицы airports (страна, координаты).
+      operationId: route_efficiency_api_routes_efficiency_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 7
+          title: Days
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          default: 20
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RouteEfficiencySchema'
+                title: Response Route Efficiency Api Routes Efficiency Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/routes/duration-distribution:
+    get:
+      tags:
+      - Маршруты
+      summary: Гистограмма длительностей рейсов
+      description: Распределение рейсов по длительности за период (12 бакетов по 60
+        мин, диапазон 0–720 мин).
+      operationId: duration_distribution_api_routes_duration_distribution_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 7
+          title: Days
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DurationBucketSchema'
+                title: Response Duration Distribution Api Routes Duration Distribution
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/routes/airlines:
+    get:
+      tags:
+      - Маршруты
+      summary: Топ авиакомпаний по числу рейсов
+      description: Топ авиакомпаний (по коду ICAO из позывного) за выбранный период.
+      operationId: top_airlines_api_routes_airlines_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 90
+          minimum: 1
+          default: 7
+          title: Days
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 50
+          minimum: 1
+          default: 15
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AirlineStatSchema'
+                title: Response Top Airlines Api Routes Airlines Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/export/flights:
+    get:
+      tags:
+      - Экспорт
+      summary: Экспорт рейсов в CSV
+      description: Скачивает CSV-файл со всеми рейсами за указанный период.
+      operationId: export_flights_api_export_flights_get
+      parameters:
+      - name: start
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          description: 'Начало периода, ISO-формат: 2026-03-01T00:00:00'
+          title: Start
+        description: 'Начало периода, ISO-формат: 2026-03-01T00:00:00'
+      - name: end
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
+          description: 'Конец периода, ISO-формат: 2026-03-21T23:59:59'
+          title: End
+        description: 'Конец периода, ISO-формат: 2026-03-21T23:59:59'
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/export/raw:
+    get:
+      tags:
+      - Экспорт
+      summary: Выгрузить все сырые данные о рейсах в CSV
+      description: Скачивает все рейсы из БД со всеми столбцами (без фильтра по дате).
+      operationId: export_raw_api_export_raw_get
+      responses:
+        '200':
+          description: Successful Response
+  /api/export/analytics:
+    get:
+      tags:
+      - Экспорт
+      summary: Выгрузить всю аналитику в ZIP-архиве (несколько CSV)
+      description: "Собирает аналитические выборки из БД и упаковывает в ZIP-архив:\n\
+        \  • airport_statistics.csv  — трафик по аэропортам\n  • top_routes.csv  \
+        \        — топ-маршруты\n  • aircraft_activity.csv   — активность воздушных\
+        \ судов\n  • country_distribution.csv — распределение по странам (state vectors)"
+      operationId: export_analytics_api_export_analytics_get
+      responses:
+        '200':
+          description: Successful Response
+  /api/health:
+    get:
+      tags:
+      - Служебные
+      summary: Healthcheck
+      operationId: healthcheck_api_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    AircraftPositionSchema:
+      properties:
+        icao24:
+          type: string
+          title: Icao24
+        callsign:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callsign
+        latitude:
+          type: number
+          title: Latitude
+        longitude:
+          type: number
+          title: Longitude
+        altitude_m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Altitude M
+          description: Барометрическая высота, м
+        speed_kmh:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Speed Kmh
+          description: Скорость, км/ч
+        vertical_rate_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Vertical Rate Ms
+          description: Вертикальная скорость, м/с
+        on_ground:
+          type: boolean
+          title: On Ground
+        last_contact:
+          type: string
+          format: date-time
+          title: Last Contact
+        origin_country:
+          type: string
+          title: Origin Country
+      type: object
+      required:
+      - icao24
+      - latitude
+      - longitude
+      - on_ground
+      - last_contact
+      - origin_country
+      title: AircraftPositionSchema
+      description: Текущая позиция воздушного судна.
+    AircraftRouteSchema:
+      properties:
+        departure:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Departure
+        arrival:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Arrival
+        times_flown:
+          type: integer
+          title: Times Flown
+        avg_duration_minutes:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Avg Duration Minutes
+      type: object
+      required:
+      - times_flown
+      title: AircraftRouteSchema
+      description: Один типичный маршрут конкретного борта.
+    AircraftTypeSchema:
+      properties:
+        category:
+          type: integer
+          title: Category
+        category_name:
+          type: string
+          title: Category Name
+        unique_aircraft:
+          type: integer
+          title: Unique Aircraft
+        observations:
+          type: integer
+          title: Observations
+      type: object
+      required:
+      - category
+      - category_name
+      - unique_aircraft
+      - observations
+      title: AircraftTypeSchema
+      description: Тип ВС по категории ADS-B.
+    AirlineStatSchema:
+      properties:
+        airline_code:
+          type: string
+          title: Airline Code
+        flights:
+          type: integer
+          title: Flights
+      type: object
+      required:
+      - airline_code
+      - flights
+      title: AirlineStatSchema
+      description: Авиакомпания и её доля рейсов за период.
+    AirportBusynessSchema:
+      properties:
+        airport:
+          type: string
+          title: Airport
+        departures:
+          type: integer
+          title: Departures
+        arrivals:
+          type: integer
+          title: Arrivals
+        total_flights:
+          type: integer
+          title: Total Flights
+        first_seen:
+          type: string
+          format: date-time
+          title: First Seen
+        last_seen:
+          type: string
+          format: date-time
+          title: Last Seen
+      type: object
+      required:
+      - airport
+      - departures
+      - arrivals
+      - total_flights
+      - first_seen
+      - last_seen
+      title: AirportBusynessSchema
+      description: Загруженность одного аэропорта.
+    AirportInfoSchema:
+      properties:
+        icao:
+          type: string
+          title: Icao
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        latitude:
+          type: number
+          title: Latitude
+        longitude:
+          type: number
+          title: Longitude
+        country:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+      type: object
+      required:
+      - icao
+      - latitude
+      - longitude
+      title: AirportInfoSchema
+      description: Гео-информация об аэропорте из справочника.
+    AirportStatsSchema:
+      properties:
+        airport:
+          type: string
+          title: Airport
+        departures:
+          type: integer
+          title: Departures
+        arrivals:
+          type: integer
+          title: Arrivals
+        total_flights:
+          type: integer
+          title: Total Flights
+        first_seen:
+          type: string
+          format: date-time
+          title: First Seen
+        last_seen:
+          type: string
+          format: date-time
+          title: Last Seen
+      type: object
+      required:
+      - airport
+      - departures
+      - arrivals
+      - total_flights
+      - first_seen
+      - last_seen
+      title: AirportStatsSchema
+      description: Общая статистика аэропорта за период.
+    AltitudeBucketSchema:
+      properties:
+        bucket:
+          type: integer
+          title: Bucket
+        label:
+          type: string
+          title: Label
+        min_m:
+          type: integer
+          title: Min M
+        max_m:
+          type: integer
+          title: Max M
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - bucket
+      - label
+      - min_m
+      - max_m
+      - count
+      title: AltitudeBucketSchema
+      description: Один бакет гистограммы высот.
+    AltitudeProfileSchema:
+      properties:
+        category:
+          type: integer
+          title: Category
+        category_name:
+          type: string
+          title: Category Name
+        avg_altitude_m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Avg Altitude M
+        avg_speed_kmh:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Avg Speed Kmh
+        median_altitude_m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Median Altitude M
+        sample_aircraft:
+          type: integer
+          title: Sample Aircraft
+      type: object
+      required:
+      - category
+      - category_name
+      - sample_aircraft
+      title: AltitudeProfileSchema
+      description: Высотно-скоростной профиль одной категории ВС.
+    Body_init_upload_csv_api_init_upload_csv_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_init_upload_csv_api_init_upload_csv_post
+    CityBusynessSchema:
+      properties:
+        city:
+          type: string
+          title: City
+        country:
+          type: string
+          title: Country
+        departures:
+          type: integer
+          title: Departures
+        arrivals:
+          type: integer
+          title: Arrivals
+        total_flights:
+          type: integer
+          title: Total Flights
+        first_seen:
+          type: string
+          format: date-time
+          title: First Seen
+        last_seen:
+          type: string
+          format: date-time
+          title: Last Seen
+      type: object
+      required:
+      - city
+      - country
+      - departures
+      - arrivals
+      - total_flights
+      - first_seen
+      - last_seen
+      title: CityBusynessSchema
+      description: Загруженность города (агрегация аэропортов).
+    CountryCountSchema:
+      properties:
+        country:
+          type: string
+          title: Country
+        aircraft_count:
+          type: integer
+          title: Aircraft Count
+      type: object
+      required:
+      - country
+      - aircraft_count
+      title: CountryCountSchema
+      description: Страна и количество её самолётов в снапшоте.
+    DailyTrendSchema:
+      properties:
+        date:
+          type: string
+          title: Date
+        departures:
+          type: integer
+          title: Departures
+        arrivals:
+          type: integer
+          title: Arrivals
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - date
+      - departures
+      - arrivals
+      - total
+      title: DailyTrendSchema
+      description: Суточная динамика рейсов через аэропорт.
+    DailyUsageSchema:
+      properties:
+        date:
+          type: string
+          title: Date
+        flights:
+          type: integer
+          title: Flights
+        total_hours:
+          type: number
+          title: Total Hours
+      type: object
+      required:
+      - date
+      - flights
+      - total_hours
+      title: DailyUsageSchema
+      description: Использование самолёта за один день.
+    DataStatus:
+      properties:
+        has_data:
+          type: boolean
+          title: Has Data
+        flights:
+          type: integer
+          title: Flights
+        states:
+          type: integer
+          title: States
+      type: object
+      required:
+      - has_data
+      - flights
+      - states
+      title: DataStatus
+    DestinationSchema:
+      properties:
+        destination:
+          type: string
+          title: Destination
+        country:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country
+        airport_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Airport Name
+        latitude:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latitude
+        longitude:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Longitude
+        flight_count:
+          type: integer
+          title: Flight Count
+      type: object
+      required:
+      - destination
+      - flight_count
+      title: DestinationSchema
+      description: Одно направление из аэропорта.
+    DurationBucketSchema:
+      properties:
+        bucket:
+          type: integer
+          title: Bucket
+        label:
+          type: string
+          title: Label
+        min_min:
+          type: integer
+          title: Min Min
+        max_min:
+          type: integer
+          title: Max Min
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - bucket
+      - label
+      - min_min
+      - max_min
+      - count
+      title: DurationBucketSchema
+      description: Один бакет гистограммы длительностей рейсов.
+    ExtremeVerticalRateSchema:
+      properties:
+        icao24:
+          type: string
+          title: Icao24
+        callsign:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callsign
+        latitude:
+          type: number
+          title: Latitude
+        longitude:
+          type: number
+          title: Longitude
+        altitude_m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Altitude M
+        speed_kmh:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Speed Kmh
+        vertical_rate_ms:
+          type: number
+          title: Vertical Rate Ms
+        direction:
+          type: string
+          title: Direction
+          description: '''climb'' или ''descent'''
+        last_contact:
+          type: string
+          format: date-time
+          title: Last Contact
+        origin_country:
+          type: string
+          title: Origin Country
+      type: object
+      required:
+      - icao24
+      - latitude
+      - longitude
+      - vertical_rate_ms
+      - direction
+      - last_contact
+      - origin_country
+      title: ExtremeVerticalRateSchema
+      description: Самолёт с экстремальной вертикальной скоростью.
+    FlightHistorySchema:
+      properties:
+        icao24:
+          type: string
+          title: Icao24
+        callsign:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Callsign
+        first_seen:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: First Seen
+        last_seen:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Seen
+        departure:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Departure
+        arrival:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Arrival
+        duration_minutes:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Minutes
+      type: object
+      required:
+      - icao24
+      title: FlightHistorySchema
+      description: Один исторический рейс конкретного борта.
+    FlightPhaseSchema:
+      properties:
+        phase:
+          type: string
+          title: Phase
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - phase
+      - count
+      title: FlightPhaseSchema
+      description: Фаза полёта (набор/снижение/горизонт) и количество ВС.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InitResult:
+      properties:
+        states_loaded:
+          type: integer
+          title: States Loaded
+          default: 0
+        flights_loaded:
+          type: integer
+          title: Flights Loaded
+          default: 0
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - message
+      title: InitResult
+    PeakHoursSchema:
+      properties:
+        airport:
+          type: string
+          title: Airport
+        days:
+          type: integer
+          title: Days
+        departure:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Departure
+          description: час 0-23 → количество вылетов
+        arrival:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Arrival
+          description: час 0-23 → количество прилётов
+      type: object
+      required:
+      - airport
+      - days
+      - departure
+      - arrival
+      title: PeakHoursSchema
+      description: 'Пиковые часы аэропорта: распределение по часам суток.'
+    PopularRouteSchema:
+      properties:
+        departure:
+          type: string
+          title: Departure
+        arrival:
+          type: string
+          title: Arrival
+        flight_count:
+          type: integer
+          title: Flight Count
+        avg_duration_minutes:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Avg Duration Minutes
+        unique_aircraft:
+          type: integer
+          title: Unique Aircraft
+      type: object
+      required:
+      - departure
+      - arrival
+      - flight_count
+      - unique_aircraft
+      title: PopularRouteSchema
+      description: Популярный маршрут — пара аэропортов.
+    RouteEfficiencySchema:
+      properties:
+        departure:
+          type: string
+          title: Departure
+        arrival:
+          type: string
+          title: Arrival
+        flight_count:
+          type: integer
+          title: Flight Count
+        avg_duration_minutes:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Avg Duration Minutes
+        great_circle_km:
+          type: number
+          title: Great Circle Km
+          description: Кратчайшее расстояние (ортодромия), км
+        estimated_actual_km:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Estimated Actual Km
+          description: Оценка фактического пути, км
+        route_efficiency_pct:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Route Efficiency Pct
+          description: Отношение ортодромии к факт. пути, %
+      type: object
+      required:
+      - departure
+      - arrival
+      - flight_count
+      - great_circle_km
+      title: RouteEfficiencySchema
+      description: Эффективность маршрута относительно ортодромии.
+    SnapshotStatsSchema:
+      properties:
+        total:
+          type: integer
+          title: Total
+        airborne:
+          type: integer
+          title: Airborne
+        on_ground:
+          type: integer
+          title: On Ground
+        max_speed_kmh:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Max Speed Kmh
+        max_altitude_m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Max Altitude M
+        countries_count:
+          type: integer
+          title: Countries Count
+      type: object
+      required:
+      - total
+      - airborne
+      - on_ground
+      - countries_count
+      title: SnapshotStatsSchema
+      description: Агрегированная статистика последнего снапшота.
+    SpeedBucketSchema:
+      properties:
+        bucket:
+          type: integer
+          title: Bucket
+        label:
+          type: string
+          title: Label
+        min_kmh:
+          type: integer
+          title: Min Kmh
+        max_kmh:
+          type: integer
+          title: Max Kmh
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - bucket
+      - label
+      - min_kmh
+      - max_kmh
+      - count
+      title: SpeedBucketSchema
+      description: Один бакет гистограммы скоростей.
+    ThroughputSchema:
+      properties:
+        airport:
+          type: string
+          title: Airport
+        total_flights:
+          type: integer
+          title: Total Flights
+        departures:
+          type: integer
+          title: Departures
+        arrivals:
+          type: integer
+          title: Arrivals
+        avg_flights_per_hour:
+          type: number
+          title: Avg Flights Per Hour
+      type: object
+      required:
+      - airport
+      - total_flights
+      - departures
+      - arrivals
+      - avg_flights_per_hour
+      title: ThroughputSchema
+      description: Пропускная способность одного аэропорта.
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

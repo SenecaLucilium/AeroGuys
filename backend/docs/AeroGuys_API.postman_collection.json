@@ -1,0 +1,1097 @@
+{
+  "info": {
+    "_postman_id": "83f49f26-b39f-46cb-b261-16ca8ac2c0b9",
+    "name": "AeroGuys API",
+    "description": "REST API для анализа авиационных данных из OpenSky Network.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Аэропорты",
+      "item": [
+        {
+          "name": "Рейтинг аэропортов по загруженности",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/airports/stats?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "airports",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "0",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Статистика всех аэропортов. days=0 — весь доступный снапшот (all-time)."
+          },
+          "response": []
+        },
+        {
+          "name": "Гео-информация об аэропорте",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/airports/:icao/info",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "airports",
+                ":icao",
+                "info"
+              ],
+              "query": []
+            },
+            "description": "Координаты, страна и город из справочника аэропортов."
+          },
+          "response": []
+        },
+        {
+          "name": "Пиковые часы аэропорта",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/airports/:icao/peak-hours?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "airports",
+                ":icao",
+                "peak-hours"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Почасовое распределение вылетов и прилётов для выбранного аэропорта."
+          },
+          "response": []
+        },
+        {
+          "name": "География направлений из аэропорта",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/airports/:icao/destinations?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "airports",
+                ":icao",
+                "destinations"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Куда и сколько раз летели самолёты из данного аэропорта за период."
+          },
+          "response": []
+        },
+        {
+          "name": "Ежедневная динамика рейсов через аэропорт",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/airports/:icao/daily-trend?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "airports",
+                ":icao",
+                "daily-trend"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "14",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Количество вылетов, прилётов и суммарное число рейсов по дням за период."
+          },
+          "response": []
+        },
+        {
+          "name": "Пропускная способность аэропортов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/airports/throughput?airports=",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "airports",
+                "throughput"
+              ],
+              "query": [
+                {
+                  "key": "airports",
+                  "value": "",
+                  "description": "ICAO-коды аэропортов, например: airports=EDDF&airports=LFPG",
+                  "disabled": false
+                },
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Среднее число рейсов в час для указанных аэропортов. Передайте несколько значений параметра `airports` для сравнения."
+          },
+          "response": []
+        }
+      ],
+      "_postman_isSubFolder": false
+    },
+    {
+      "name": "Воздушные суда",
+      "item": [
+        {
+          "name": "Текущие позиции самолётов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/positions?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "positions"
+              ],
+              "query": [
+                {
+                  "key": "min_lat",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "max_lat",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "min_lon",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "max_lon",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "min_altitude",
+                  "value": "",
+                  "description": "Минимальная высота, м",
+                  "disabled": true
+                },
+                {
+                  "key": "on_ground",
+                  "value": "",
+                  "description": "true — только на земле, false — только в воздухе",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "1000",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Все борты из последнего снапшота с опциональной фильтрацией по bbox и высоте."
+          },
+          "response": []
+        },
+        {
+          "name": "Найти борт по позывному",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/by-callsign/:callsign",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "by-callsign",
+                ":callsign"
+              ],
+              "query": []
+            },
+            "description": ""
+          },
+          "response": []
+        },
+        {
+          "name": "Популярные типы ВС в регионе",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/types?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "types"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "min_lat",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "max_lat",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "min_lon",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "max_lon",
+                  "value": "",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Распределение воздушных судов по категориям ADS-B за последние N дней. Bbox опционален."
+          },
+          "response": []
+        },
+        {
+          "name": "Высотный профиль типов ВС",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/altitude-profile",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "altitude-profile"
+              ],
+              "query": []
+            },
+            "description": "Средняя и медианная крейсерская высота, средняя скорость по каждой категории ADS-B."
+          },
+          "response": []
+        },
+        {
+          "name": "Военные / неопознанные самолёты",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/unidentified?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "unidentified"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Борты без позывного или со squawk кодами аварийных/военных ситуаций (7500/7600/7700/7777)."
+          },
+          "response": []
+        },
+        {
+          "name": "Бизнес-авиация",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/business?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "business"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Борты категорий Light/Small/High-performance с нестандартными позывными (не авиакомпании)."
+          },
+          "response": []
+        },
+        {
+          "name": "Резкие наборы и снижения высоты",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/extreme-vertical-rates?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "extreme-vertical-rates"
+              ],
+              "query": [
+                {
+                  "key": "threshold_ms",
+                  "value": "10.0",
+                  "description": "Порог вертикальной скорости, м/с",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Борты с вертикальной скоростью выше порога (по умолчанию ±10 м/с ≈ 2000 ft/min)."
+          },
+          "response": []
+        },
+        {
+          "name": "Гистограмма скоростей",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/speed-distribution",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "speed-distribution"
+              ],
+              "query": []
+            },
+            "description": "Распределение воздушных судов по скоростям из последнего снапшота (10 бакетов, 0–1200 км/ч)."
+          },
+          "response": []
+        },
+        {
+          "name": "Гистограмма высот",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/altitude-distribution",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "altitude-distribution"
+              ],
+              "query": []
+            },
+            "description": "Распределение воздушных судов по высоте из последнего снапшота (10 бакетов, 0–15 000 м)."
+          },
+          "response": []
+        },
+        {
+          "name": "Страны воздушных судов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/country-distribution?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "country-distribution"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "15",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Топ стран по числу уникальных ВС в последнем снапшоте."
+          },
+          "response": []
+        },
+        {
+          "name": "Статистика снапшота",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/snapshot-stats",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "snapshot-stats"
+              ],
+              "query": []
+            },
+            "description": "Агрегированные показатели последнего снапшота: всего ВС, в воздухе, на земле, макс. скорость/высота, кол-во стран."
+          },
+          "response": []
+        },
+        {
+          "name": "Фазы полёта",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/flight-phases",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                "flight-phases"
+              ],
+              "query": []
+            },
+            "description": "Распределение воздушных судов по фазам полёта (набор высоты / снижение / горизонтальный полёт)."
+          },
+          "response": []
+        },
+        {
+          "name": "Использование конкретного самолёта",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/:icao24/usage?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                ":icao24",
+                "usage"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "График налёта часов и числа рейсов по дням для выбранного борта (ICAO24)."
+          },
+          "response": []
+        },
+        {
+          "name": "Типичные маршруты конкретного самолёта",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/:icao24/routes?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                ":icao24",
+                "routes"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Топ маршрутов (пар аэропортов) по числу выполненных рейсов."
+          },
+          "response": []
+        },
+        {
+          "name": "История полётов конкретного самолёта",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/aircraft/:icao24/history?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "aircraft",
+                ":icao24",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Последние рейсы борта из локальной БД (только рейсы с известными аэропортами)."
+          },
+          "response": []
+        }
+      ],
+      "_postman_isSubFolder": false
+    },
+    {
+      "name": "Инициализация",
+      "item": [
+        {
+          "name": "Проверить наличие данных в БД",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/init/status",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "init",
+                "status"
+              ],
+              "query": []
+            },
+            "description": "Возвращает, есть ли в базе загруженные данные."
+          },
+          "response": []
+        },
+        {
+          "name": "Загрузить real-time данные из OpenSky API",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/init/realtime",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "init",
+                "realtime"
+              ],
+              "query": []
+            },
+            "description": "Выполняет один цикл сбора данных из OpenSky Network:\nstate vectors (текущие позиции) + рейсы за последние 2 часа."
+          },
+          "response": []
+        },
+        {
+          "name": "Загрузить рейсы из CSV-файла",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/init/upload-csv",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "init",
+                "upload-csv"
+              ],
+              "query": []
+            },
+            "description": "Принимает CSV с заголовком (регистр не важен):\n  ICAO24, Callsign, Departure Time, Arrival Time, From, To, Duration (min)\n\nДубликаты пропускаются автоматически (ON CONFLICT DO NOTHING)."
+          },
+          "response": []
+        }
+      ],
+      "_postman_isSubFolder": false
+    },
+    {
+      "name": "Маршруты",
+      "item": [
+        {
+          "name": "Популярные маршруты",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/routes/popular?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                "popular"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Самые частотные пары аэропортов (маршруты) за выбранный период."
+          },
+          "response": []
+        },
+        {
+          "name": "Эффективность маршрутов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/routes/efficiency?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                "efficiency"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Сравнение фактической длительности рейса с теоретической ортодромией. Требует заполненной таблицы airports (страна, координаты)."
+          },
+          "response": []
+        },
+        {
+          "name": "Гистограмма длительностей рейсов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/routes/duration-distribution?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                "duration-distribution"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Распределение рейсов по длительности за период (12 бакетов по 60 мин, диапазон 0–720 мин)."
+          },
+          "response": []
+        },
+        {
+          "name": "Топ авиакомпаний по числу рейсов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/routes/airlines?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                "airlines"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "15",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Топ авиакомпаний (по коду ICAO из позывного) за выбранный период."
+          },
+          "response": []
+        }
+      ],
+      "_postman_isSubFolder": false
+    },
+    {
+      "name": "Реальное время",
+      "item": [
+        {
+          "name": "Рейтинг загруженности аэропортов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/realtime/airport-busyness?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "realtime",
+                "airport-busyness"
+              ],
+              "query": [
+                {
+                  "key": "hours_back",
+                  "value": "24",
+                  "description": "Глубина выборки в часах (макс 7 дней)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Аэропорты, отсортированные по суммарному числу рейсов за последние N часов."
+          },
+          "response": []
+        },
+        {
+          "name": "Рейтинг загруженности городов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/realtime/city-busyness?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "realtime",
+                "city-busyness"
+              ],
+              "query": [
+                {
+                  "key": "hours_back",
+                  "value": "24",
+                  "description": "",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Города, отсортированные по суммарному числу рейсов (аэропорты одного города объединяются)."
+          },
+          "response": []
+        },
+        {
+          "name": "Рейтинг самых быстрых самолётов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/realtime/fastest?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "realtime",
+                "fastest"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Топ воздушных судов по скорости из последнего снапшота (только в воздухе)."
+          },
+          "response": []
+        },
+        {
+          "name": "Рейтинг самых высоких полётов",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/realtime/highest?",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "realtime",
+                "highest"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Топ воздушных судов по барометрической высоте из последнего снапшота."
+          },
+          "response": []
+        }
+      ],
+      "_postman_isSubFolder": false
+    },
+    {
+      "name": "Служебные",
+      "item": [
+        {
+          "name": "Healthcheck",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/health",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ],
+              "query": []
+            },
+            "description": ""
+          },
+          "response": []
+        }
+      ],
+      "_postman_isSubFolder": false
+    },
+    {
+      "name": "Экспорт",
+      "item": [
+        {
+          "name": "Экспорт рейсов в CSV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/export/flights?start=&end=",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "export",
+                "flights"
+              ],
+              "query": [
+                {
+                  "key": "start",
+                  "value": "",
+                  "description": "Начало периода, ISO-формат: 2026-03-01T00:00:00",
+                  "disabled": false
+                },
+                {
+                  "key": "end",
+                  "value": "",
+                  "description": "Конец периода, ISO-формат: 2026-03-21T23:59:59",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Скачивает CSV-файл со всеми рейсами за указанный период."
+          },
+          "response": []
+        },
+        {
+          "name": "Выгрузить все сырые данные о рейсах в CSV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/export/raw",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "export",
+                "raw"
+              ],
+              "query": []
+            },
+            "description": "Скачивает все рейсы из БД со всеми столбцами (без фильтра по дате)."
+          },
+          "response": []
+        },
+        {
+          "name": "Выгрузить всю аналитику в ZIP-архиве (несколько CSV)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/export/analytics",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "export",
+                "analytics"
+              ],
+              "query": []
+            },
+            "description": "Собирает аналитические выборки из БД и упаковывает в ZIP-архив:\n  • airport_statistics.csv  — трафик по аэропортам\n  • top_routes.csv          — топ-маршруты\n  • aircraft_activity.csv   — активность воздушных судов\n  • country_distribution.csv — распределение по странам (state vectors)"
+          },
+          "response": []
+        }
+      ],
+      "_postman_isSubFolder": false
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ]
+}
